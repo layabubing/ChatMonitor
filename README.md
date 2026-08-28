@@ -8,7 +8,7 @@
 - **AI 分析**：deepseek-v4-flash-0731 生成日报总结、判断重要信息、输出执行建议（动作/责任人/优先级），支持图片多模态；
 - **每日报告**：定时生成 `docx + html` 报告，网页在线预览/下载；
 - **重要提醒**：关键词 + AI 双重判定，站内提醒 + 可选 Server酱 推送；
-- **实时推送（SSE）**：新消息/新提醒/新报告/新文件毫秒级推送到网页，无需手动刷新（断线自动重连，5s 轮询兜底）；
+- **实时推送（SSE）**：新消息/新提醒/新报告/新文件毫秒级推送到网页，顶栏实时显示连接状态；断线自动重连，且仅在断线期间启用 10s 兜底轮询；
 - **文件库**：群里的**图片/文件自动下载保存**（`data/users/{username}/media/`，按账号隔离），AI 自动识别内容、判断是否为重要资料并**标记 ★ 重要**、打分类标签；「文件库」页支持缩略图预览、下载、按平台/分类/重要筛选、手动标记；重要文件自动生成提醒（AI 视觉模型 `qwen-vl-plus`，图片识别）；
 - **Web 界面**：**开放注册 + 登录**（多用户，账号密码 JWT 认证）；消息/报告/提醒/文件页支持 **QQ/钉钉 一键切换**；
 - **多租户（每账号独立空间）**：每个账号（含 admin）**绑定自己的 QQ/钉钉账号**（AppID/Secret 存用户库）、**设置自己的关键词库**、数据（消息/提醒/报告/文件/媒体）**按账号完全隔离**（`data/users/{username}/`）；AI 判定/识别**全局共用**管理员提供的 API；**worker 动态扩展**——新用户绑定机器人后 15 秒内自动接入独立连接，无需重启；
@@ -165,7 +165,8 @@ web/
   ├─ routers/            pages/auth_routes/account/overview/messages/alerts/
   │                      reports/platforms/files/settings/stream
   ├─ server.py           应用装配（create_app）
-  └─ static/             前端 SPA（index/login/app.js/style.css）
+  └─ static/             前端 SPA：index/login + style.css + js/（ES Modules：
+                         util/ui 组件库 + pages/* 页面模块 + app.js 主控导航与 SSE 状态机）
 configs/           各平台配置模板 + 关键词库
 deploy/            nginx / systemd / 部署文档
 ```

@@ -7,160 +7,241 @@
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<div class="topbar">
-  <div class="logo">🐱 聊天<span>分析助手</span></div>
-  <nav class="tabs">
-    <div class="tab active" data-page="overview">总览</div>
-    <div class="tab" data-page="messages">消息</div>
-    <div class="tab" data-page="reports">报告</div>
-    <div class="tab" data-page="alerts">提醒<span id="alertBadge" style="display:none;background:var(--danger);color:#fff;border-radius:10px;padding:0 6px;font-size:11px;margin-left:4px"></span></div>
-    <div class="tab" data-page="files">文件库</div>
-    <div class="tab" data-page="settings">设置</div>
-  </nav>
-  <div class="top-right"><span id="who"></span><button class="btn-logout" id="logout">退出</button></div>
-</div>
+<div class="app">
 
-<div class="container">
-  <!-- 总览 -->
-  <div class="page active" id="page-overview">
-    <div class="platform-grid" id="overviewGrid"></div>
-  </div>
-
-  <!-- 消息 -->
-  <div class="page" id="page-messages">
-    <div class="filters">
-      <div class="seg" id="msgPlatform">
-        <button data-p="qq" class="active">QQ</button>
-        <button data-p="dingtalk">钉钉</button>
-      </div>
-      <select id="msgGroup"><option value="">全部群</option></select>
-      <input type="text" id="msgQ" placeholder="搜索关键词…">
-      <button class="btn" id="msgSearch">搜索</button>
-    </div>
-    <div class="card"><div id="msgList"></div>
-      <div class="pager">
-        <button class="btn sm" id="msgPrev">上一页</button>
-        <span id="msgPageInfo">第 1 页</span>
-        <button class="btn sm" id="msgNext">下一页</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 报告 -->
-  <div class="page" id="page-reports">
-    <div class="filters">
-      <div class="seg" id="repPlatform">
-        <button data-p="" class="active">全部</button>
-        <button data-p="qq">QQ</button>
-        <button data-p="dingtalk">钉钉</button>
-      </div>
-      <button class="btn" id="repRefresh">刷新</button>
-    </div>
-    <div class="card">
-      <div id="repList"></div>
-      <div class="report-preview" id="repPreview" style="display:none">
-        <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
-          <b id="repPreviewTitle"></b>
-          <a class="btn sm" id="repDownloadDocx" href="#" download>下载 docx</a>
-          <button class="btn sm" id="repClosePreview">关闭</button>
+  <!-- ══ 侧边栏导航 ══ -->
+  <aside class="sidebar">
+    <div class="logo">🐱 聊天<span>分析助手</span></div>
+    <nav id="mainNav">
+      <button class="nav-item active" data-page="overview"><span class="ico">📊</span><span class="nav-text">总览</span></button>
+      <button class="nav-item" data-page="messages"><span class="ico">💬</span><span class="nav-text">消息</span></button>
+      <button class="nav-item" data-page="alerts"><span class="ico">🔔</span><span class="nav-text">提醒</span><span id="alertBadge" class="badge-num" hidden></span></button>
+      <button class="nav-item" data-page="reports"><span class="ico">📄</span><span class="nav-text">报告</span></button>
+      <button class="nav-item" data-page="files"><span class="ico">🗂</span><span class="nav-text">文件库</span></button>
+      <button class="nav-item" data-page="settings"><span class="ico">⚙️</span><span class="nav-text">设置</span></button>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="user-chip">
+        <div class="avatar" id="whoAvatar">·</div>
+        <div style="min-width:0">
+          <div class="name" id="who">…</div>
+          <div class="sub"><span id="sseDot" class="sse-dot offline"></span><span id="sseText">连接中</span></div>
         </div>
-        <iframe id="repIframe"></iframe>
       </div>
+      <button class="btn-logout" id="logout">退出登录</button>
     </div>
-  </div>
+  </aside>
 
-  <!-- 提醒 -->
-  <div class="page" id="page-alerts">
-    <div class="filters">
-      <div class="seg" id="alertPlatform">
-        <button data-p="" class="active">全部</button>
-        <button data-p="qq">QQ</button>
-        <button data-p="dingtalk">钉钉</button>
-      </div>
-      <button class="btn" id="alertAllRead">全部标记已读</button>
-    </div>
-    <div id="alertList"></div>
-  </div>
+  <!-- ══ 主区域 ══ -->
+  <main class="main"><div class="main-inner">
 
-  <!-- 文件库 -->
-  <div class="page" id="page-files">
-    <div class="filters">
-      <div class="seg" id="filePlatform">
-        <button data-p="" class="active">全部</button>
-        <button data-p="qq">QQ</button>
-        <button data-p="dingtalk">钉钉</button>
+    <!-- 总览 -->
+    <section class="page active" id="page-overview">
+      <header class="page-head">
+        <div><h1>总览</h1><div class="desc">各平台运行状态与今日动态</div></div>
+      </header>
+      <div class="stat-strip" id="statStrip"></div>
+      <div class="platform-grid" id="overviewGrid"></div>
+      <div class="card" id="ovAlertsCard" hidden>
+        <h3>🔔 最新未读提醒 <span class="hint-inline">点击条目前往处理</span></h3>
+        <div id="ovAlerts"></div>
       </div>
-      <select id="fileCategory"><option value="">全部分类</option></select>
-      <label style="display:flex;align-items:center;gap:6px;color:var(--muted);font-size:13px">
-        <input type="checkbox" id="fileImportant"> 仅重要</label>
-      <input type="text" id="fileQ" placeholder="搜索文件名/描述…">
-      <button class="btn" id="fileSearch">搜索</button>
-    </div>
-    <div class="card"><div id="fileList"></div>
-      <div class="pager">
-        <button class="btn sm" id="filePrev">上一页</button>
-        <span id="filePageInfo"></span>
-        <button class="btn sm" id="fileNext">下一页</button>
-      </div>
-    </div>
-  </div>
+      <div id="overviewGuide"></div>
+    </section>
 
-  <!-- 设置 -->
-  <div class="page" id="page-settings">
-    <div class="card" id="meCard">
-      <h3>👤 我的账号</h3>
-      <div class="settings-row"><span class="label">用户名</span><span id="setUser"></span></div>
-      <div class="settings-row"><span class="label">角色</span><span id="setRole"></span></div>
-      <div class="settings-row">
-        <span class="label">昵称（≤24字）</span>
-        <span style="display:flex;gap:8px"><input type="text" id="meNick" placeholder="给自己起个昵称"><button class="btn primary sm" id="saveNick">保存昵称</button></span>
+    <!-- 消息 -->
+    <section class="page" id="page-messages">
+      <header class="page-head">
+        <div><h1>消息</h1><div class="desc">群聊消息流，实时更新</div></div>
+        <div class="actions"><button class="btn" id="msgRefresh">⟳ 刷新</button></div>
+      </header>
+      <div class="toolbar">
+        <div class="seg" id="msgPlatform">
+          <button data-p="qq" class="active">QQ</button>
+          <button data-p="dingtalk">钉钉</button>
+        </div>
+        <select id="msgGroup"><option value="">全部群</option></select>
+        <div class="spacer"></div>
+        <input type="text" id="msgQ" placeholder="搜索消息内容 / 发送者…">
       </div>
-      <div class="settings-row">
-        <span class="label">修改密码（≥6位）</span>
-        <span style="display:flex;gap:8px"><input type="password" id="oldPwd" placeholder="旧密码"><input type="password" id="newPwd" placeholder="新密码"><button class="btn primary sm" id="savePwd">保存</button></span>
+      <div class="card" style="padding:4px 8px">
+        <div id="msgList"></div>
+        <div class="pager">
+          <button class="btn sm" id="msgPrev">‹ 上一页</button>
+          <span id="msgPageInfo"></span>
+          <button class="btn sm" id="msgNext">下一页 ›</button>
+        </div>
       </div>
-    </div>
-    <div class="card">
-      <h3>🔗 我的 QQ 账号绑定</h3>
-      <div class="bind-row"><label>AppID</label><input type="text" id="qq_app_id" placeholder="QQ 开放平台 AppID"></div>
-      <div class="bind-row"><label>AppSecret</label><input type="password" id="qq_app_secret" placeholder="已设置则留空不变"></div>
-      <div class="bind-row"><label>环境</label>
-        <select id="qq_env"><option value="prod">正式环境</option><option value="sandbox">沙箱环境</option></select></div>
-      <div class="bind-row"><label>监控群 openid（逗号分隔，留空=全部）</label><input type="text" id="qq_groups"></div>
-      <div class="bind-row"><label>启用</label>
-        <select id="qq_enabled"><option value="true">启用</option><option value="false">停用</option></select></div>
-      <div class="actions" style="margin-top:12px;display:flex;gap:8px">
-        <button class="btn" id="qq_test">测试连接</button>
-        <button class="btn primary" id="qq_save">保存并重启</button>
+    </section>
+
+    <!-- 提醒 -->
+    <section class="page" id="page-alerts">
+      <header class="page-head">
+        <div><h1>提醒</h1><div class="desc">关键词命中并经 AI 确认的重要消息</div></div>
+        <div class="actions"><button class="btn" id="alertRefresh">⟳ 刷新</button></div>
+      </header>
+      <div class="toolbar">
+        <div class="seg" id="alertPlatform">
+          <button data-p="" class="active">全部</button>
+          <button data-p="qq">QQ</button>
+          <button data-p="dingtalk">钉钉</button>
+        </div>
+        <label class="check"><input type="checkbox" id="alertUnread" checked> 仅看未读</label>
+        <div class="spacer"></div>
+        <button class="btn" id="alertAllRead">当前筛选全部已读</button>
       </div>
-      <div class="bind-status" id="qq_status"></div>
-    </div>
-    <div class="card">
-      <h3>🔗 我的钉钉账号绑定</h3>
-      <div class="bind-row"><label>AppKey</label><input type="text" id="dt_app_key" placeholder="钉钉企业内部应用 AppKey"></div>
-      <div class="bind-row"><label>AppSecret</label><input type="password" id="dt_app_secret" placeholder="已设置则留空不变"></div>
-      <div class="bind-row"><label>监控群 chatId（逗号分隔）</label><input type="text" id="dt_chat_ids"></div>
-      <div class="bind-row"><label>启用</label>
-        <select id="dt_enabled"><option value="true">启用</option><option value="false">停用</option></select></div>
-      <div class="actions" style="margin-top:12px;display:flex;gap:8px">
-        <button class="btn" id="dt_test">测试连接</button>
-        <button class="btn primary" id="dt_save">保存并重启</button>
+      <div id="alertList"></div>
+    </section>
+
+    <!-- 报告 -->
+    <section class="page" id="page-reports">
+      <header class="page-head">
+        <div><h1>报告</h1><div class="desc">每日定时生成的聊天分析日报</div></div>
+        <div class="actions"><button class="btn" id="repRefresh">⟳ 刷新</button></div>
+      </header>
+      <div class="toolbar">
+        <div class="seg" id="repPlatform">
+          <button data-p="" class="active">全部</button>
+          <button data-p="qq">QQ</button>
+          <button data-p="dingtalk">钉钉</button>
+        </div>
       </div>
-      <div class="bind-status" id="dt_status"></div>
+      <div id="repList"></div>
+    </section>
+
+    <!-- 文件库 -->
+    <section class="page" id="page-files">
+      <header class="page-head">
+        <div><h1>文件库</h1><div class="desc">群内图片 / 文件自动归档，AI 识别重要性</div></div>
+        <div class="actions"><button class="btn" id="fileRefresh">⟳ 刷新</button></div>
+      </header>
+      <div class="toolbar">
+        <div class="seg" id="filePlatform">
+          <button data-p="" class="active">全部</button>
+          <button data-p="qq">QQ</button>
+          <button data-p="dingtalk">钉钉</button>
+        </div>
+        <select id="fileCategory"><option value="">全部分类</option></select>
+        <label class="check"><input type="checkbox" id="fileImportant"> 仅重要</label>
+        <div class="spacer"></div>
+        <input type="text" id="fileQ" placeholder="搜索文件名 / AI 描述…">
+      </div>
+      <div class="card" style="padding:4px 8px">
+        <div id="fileList"></div>
+        <div class="pager">
+          <button class="btn sm" id="filePrev">‹ 上一页</button>
+          <span id="filePageInfo"></span>
+          <button class="btn sm" id="fileNext">下一页 ›</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 设置 -->
+    <section class="page" id="page-settings">
+      <header class="page-head">
+        <div><h1>设置</h1><div class="desc">账号、平台绑定与个性化配置</div></div>
+      </header>
+      <div class="settings-layout">
+        <aside class="subnav" id="settingsNav">
+          <button data-sub="account" class="active">👤 账号安全</button>
+          <button data-sub="bindings">🔗 平台绑定</button>
+          <button data-sub="keywords">📌 关键词库</button>
+          <button data-sub="about">🤖 AI 与状态</button>
+        </aside>
+        <div class="settings-body">
+
+          <div class="subpage active" id="sub-account">
+            <div class="card">
+              <h3>👤 我的账号</h3>
+              <div class="settings-row"><span class="label">用户名</span><span id="setUser"></span></div>
+              <div class="settings-row"><span class="label">角色</span><span id="setRole"></span></div>
+              <div class="settings-row">
+                <span class="label">昵称（≤24字）</span>
+                <span class="row-flex"><input type="text" id="meNick" placeholder="给自己起个昵称" maxlength="24">
+                  <button class="btn primary sm" id="saveNick">保存昵称</button></span>
+              </div>
+            </div>
+            <div class="card">
+              <h3>🔑 修改密码</h3>
+              <div class="settings-row">
+                <span class="label">修改密码（≥6位，修改后需重新登录）</span>
+                <span class="row-flex"><input type="password" id="oldPwd" placeholder="旧密码" autocomplete="current-password">
+                  <input type="password" id="newPwd" placeholder="新密码" autocomplete="new-password">
+                  <button class="btn primary sm" id="savePwd">保存</button></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="subpage" id="sub-bindings">
+            <div class="card">
+              <h3>🔗 我的 QQ 账号绑定</h3>
+              <div class="bind-row"><label>AppID</label><input type="text" id="qq_app_id" placeholder="QQ 开放平台 AppID"></div>
+              <div class="bind-row"><label>AppSecret</label><input type="password" id="qq_app_secret" placeholder="已设置则留空不变"></div>
+              <div class="bind-row"><label>环境</label>
+                <select id="qq_env"><option value="prod">正式环境</option><option value="sandbox">沙箱环境</option></select></div>
+              <div class="bind-row"><label>监控群 openid（逗号分隔，留空=全部）</label><input type="text" id="qq_groups"></div>
+              <div class="bind-row"><label>启用</label>
+                <select id="qq_enabled"><option value="true">启用</option><option value="false">停用</option></select></div>
+              <div class="actions row-flex" style="margin-top:12px">
+                <button class="btn" id="qq_test">测试连接</button>
+                <button class="btn primary" id="qq_save">保存</button>
+              </div>
+              <div class="bind-status" id="qq_status"></div>
+            </div>
+            <div class="card">
+              <h3>🔗 我的钉钉账号绑定</h3>
+              <div class="bind-row"><label>AppKey</label><input type="text" id="dt_app_key" placeholder="钉钉企业内部应用 AppKey"></div>
+              <div class="bind-row"><label>AppSecret</label><input type="password" id="dt_app_secret" placeholder="已设置则留空不变"></div>
+              <div class="bind-row"><label>监控群 chatId（逗号分隔）</label><input type="text" id="dt_chat_ids"></div>
+              <div class="bind-row"><label>启用</label>
+                <select id="dt_enabled"><option value="true">启用</option><option value="false">停用</option></select></div>
+              <div class="actions row-flex" style="margin-top:12px">
+                <button class="btn" id="dt_test">测试连接</button>
+                <button class="btn primary" id="dt_save">保存</button>
+              </div>
+              <div class="bind-status" id="dt_status"></div>
+            </div>
+          </div>
+
+          <div class="subpage" id="sub-keywords">
+            <div class="card">
+              <h3>📌 我的关键词库 <span class="hint-inline">命中关键词的消息将交给 AI 判定重要性</span></h3>
+              <div class="kw-toolbar row-flex">
+                <input type="text" id="kwNewCat" placeholder="新分类名，如：考试安排">
+                <button class="btn sm" id="kwAddCat">新增分类</button>
+                <span class="save-hint" id="kwSaveHint">修改后自动保存 ✓</span>
+              </div>
+              <div id="kwGroups"></div>
+            </div>
+          </div>
+
+          <div class="subpage" id="sub-about">
+            <div class="card">
+              <h3>🤖 AI 模型（<span id="aiModelName">…</span>）</h3>
+              <div id="aiInfo"></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+  </div></main>
+</div>
+
+<!-- 报告预览模态 -->
+<div class="modal-mask" id="repModal" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <b id="repPreviewTitle"></b>
+      <a class="btn sm" id="repDownloadDocx" href="#" download>下载 docx</a>
+      <button class="btn sm" id="repClosePreview">关闭 ✕</button>
     </div>
-    <div class="card">
-      <h3>🤖 AI 模型（<span id="aiModelName">…</span>）</h3>
-      <div id="aiInfo"></div>
-    </div>
-    <div class="card">
-      <h3>📌 我的关键词库</h3>
-      <div id="kwGroups"></div>
-      <button class="btn primary" id="saveKw">保存关键词</button>
-    </div>
+    <iframe id="repIframe" title="报告预览"></iframe>
   </div>
 </div>
 
-<div id="toast"></div>
-<script src="/static/app.js"></script>
+<div id="toasts"></div>
+<script type="module" src="/static/js/app.js"></script>
 </body>
 </html>
