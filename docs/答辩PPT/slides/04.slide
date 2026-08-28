@@ -1,0 +1,77 @@
+<Slide style={{ background: '#FFFFFF', padding: '0px', position: 'relative', width: '100%', height: '100%' }}>
+    {/* 顶部深蓝条 */}
+    <Box style={{ position: 'absolute', top: 0, left: 0, width: 1280, height: 8, background: '#1E4FA8' }} />
+
+    {/* 左侧标题栏（窄） */}
+    <Box style={{
+        position: 'absolute', left: 0, top: 0,
+        width: 300, height: 720,
+        background: '#0E3F8C',
+        justifyContent: 'center',
+        flexDirection: 'column', padding: '0 40px', gap: 16,
+    }}>
+        <Text style={{ fontSize: 14, color: '#3D7BD9', letterSpacing: 2 }}>PART 01 · 背景</Text>
+        <Text style={{ fontSize: 34, color: '#FFFFFF', fontWeight: 'bold', lineHeight: 1.4 }}>
+            群聊信息洪流下的
+            <br />
+            「重要信息丢失」
+        </Text>
+        <Box style={{ width: 48, height: 3, background: '#3D7BD9', marginTop: 4 }} />
+    </Box>
+
+    {/* 右侧内容区 */}
+    <Box style={{
+        position: 'absolute', left: 340, top: 0,
+        width: 900, height: 720,
+        padding: '64px 56px',
+        flexDirection: 'column', justifyContent: 'center', gap: 30,
+    }}>
+        <Box style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
+            <FAIcon name='comments' style={{ fill: '#1E4FA8', width: 44, height: 44 }} />
+            <Box>
+                <Text style={{ fontSize: 24, color: '#1A2230', fontWeight: 'bold' }}>校园群的现状</Text>
+                <Text style={{ fontSize: 16, color: '#4A5568', marginTop: 6, lineHeight: 1.6 }}>
+                    一个活跃班级群每天产生 <span style={{ fontWeight: 'bold', color: '#D9534F' }}>数百条</span> 消息，
+                    关键信息在几分钟内即被大量闲聊淹没。
+                </Text>
+            </Box>
+        </Box>
+
+        <Box style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
+            <FAIcon name='exclamation-circle' style={{ fill: '#D9534F', width: 44, height: 44 }} />
+            <Box>
+                <Text style={{ fontSize: 24, color: '#1A2230', fontWeight: 'bold' }}>真实风险</Text>
+                <Text style={{ fontSize: 16, color: '#4A5568', marginTop: 6, lineHeight: 1.6 }}>
+                    突发安全事件（着火 / 晕倒 / 失联）、考试通知、财物求助、
+                    心理预警 —— 一旦错过可能造成严重后果。
+                </Text>
+            </Box>
+        </Box>
+
+        <Box style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
+            <FAIcon name='user-times' style={{ fill: '#3D7BD9', width: 44, height: 44 }} />
+            <Box>
+                <Text style={{ fontSize: 24, color: '#1A2230', fontWeight: 'bold' }}>管理者困境</Text>
+                <Text style={{ fontSize: 16, color: '#4A5568', marginTop: 6, lineHeight: 1.6 }}>
+                    班主任 / 班委 / 社团负责人无法实时盯守每个群；
+                    人工翻记录效率低，纯关键词匹配又大量误报。
+                </Text>
+            </Box>
+        </Box>
+
+        <Box style={{
+            background: '#F0F5FC', borderRadius: 10,
+            padding: '18px 24px', borderLeft: '4px solid #1E4FA8',
+            marginTop: 8,
+        }}>
+            <Text style={{ fontSize: 18, color: '#0E3F8C', fontWeight: 'bold', lineHeight: 1.6 }}>
+                结论：需要一套「低成本、易部署、双平台、智能化」的群聊监控分析工具
+            </Text>
+        </Box>
+    </Box>
+
+    {/* 页码 */}
+    <Text style={{ position: 'absolute', right: 60, bottom: 40, fontSize: 14, color: '#8B97A8' }}>
+        4 / 14
+    </Text>
+</Slide>

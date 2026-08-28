@@ -1,0 +1,72 @@
+<Slide style={{ background: '#FFFFFF', padding: '0px', position: 'relative', width: '100%', height: '100%' }}>
+    {/* 顶部深蓝条 */}
+    <Box style={{ position: 'absolute', top: 0, left: 0, width: 1280, height: 8, background: '#1E4FA8' }} />
+
+    {/* 标题区 */}
+    <Box style={{ position: 'absolute', left: 60, top: 40, width: 1160, flexDirection: 'column' }}>
+        <Text style={{ fontSize: 14, color: '#3D7BD9', letterSpacing: 2 }}>PART 03 · 创新</Text>
+        <Text style={{ fontSize: 32, color: '#0E3F8C', fontWeight: 'bold', marginTop: 6 }}>
+            项目创新点
+        </Text>
+    </Box>
+
+    {/* 巨型数字锚点 + 洞察 */}
+    <Box style={{
+        position: 'absolute', left: 60, top: 120,
+        width: 300, height: 520,
+        flexDirection: 'column', justifyContent: 'center',
+    }}>
+        <Text style={{ fontSize: 120, color: '#1E4FA8', fontWeight: 'bold', lineHeight: 1 }}>
+            6
+        </Text>
+        <Text style={{ fontSize: 22, color: '#0E3F8C', fontWeight: 'bold', marginTop: 8 }}>
+            大创新点
+        </Text>
+        <Box style={{ width: 60, height: 3, background: '#3D7BD9', marginTop: 16, marginBottom: 16 }} />
+        <Text style={{ fontSize: 15, color: '#4A5568', lineHeight: 1.7 }}>
+            围绕「识别、触达、归档、架构、隔离、场景」六个维度构建完整闭环
+        </Text>
+    </Box>
+
+    {/* 右侧创新矩阵 */}
+    <Box style={{
+        position: 'absolute', left: 400, top: 120,
+        width: 820, height: 520,
+        flexDirection: 'column', gap: 12,
+    }}>
+        {[
+            ['双重判定', '关键词快速筛选 + 大模型精准判定的两级架构，兼顾速度、准确率与 AI 成本'],
+            ['毫秒级推送', 'SSE 服务端主动推送，新消息/新提醒 2 秒内到达，无需手动刷新'],
+            ['多媒体自动归档', '图片/文件/语音三路 AI 识别保存，形成可检索的班级资料库'],
+            ['双平台对齐', 'QQ 推送 + 钉钉轮询统一抽象为适配器，媒体与判定管线完全复用'],
+            ['多租户动态接入', '每账号独立绑定/数据/媒体隔离，新绑定 15 秒自动接入，零重启'],
+            ['校园场景词库', '内置 16 类 288 校园专属风险词，新注册自动初始化，贴合实际使用'],
+        ].map(([t, d], i) => (
+            <Box key={i} style={{
+                flexDirection: 'row', gap: 18, alignItems: 'flex-start',
+                background: i % 2 === 0 ? '#F0F5FC' : '#F7F9FC',
+                borderRadius: 10, padding: '12px 20px',
+                border: '1px solid #E5E7EB',
+            }}>
+                <Box style={{
+                    width: 44, height: 44, borderRadius: 8,
+                    background: i === 0 ? '#D9534F' : (i === 1 ? '#FFC107' : '#1E4FA8'),
+                    justifyContent: 'center', alignItems: 'center', flexShrink: 0,
+                }}>
+                    <Text style={{ fontSize: 20, color: i === 1 ? '#1A2230' : '#FFFFFF', fontWeight: 'bold' }}>
+                        {i + 1}
+                    </Text>
+                </Box>
+                <Box style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 18, color: '#1A2230', fontWeight: 'bold' }}>{t}</Text>
+                    <Text style={{ fontSize: 14, color: '#4A5568', marginTop: 4, lineHeight: 1.6 }}>{d}</Text>
+                </Box>
+            </Box>
+        ))}
+    </Box>
+
+    {/* 页码 */}
+    <Text style={{ position: 'absolute', right: 60, bottom: 40, fontSize: 14, color: '#8B97A8' }}>
+        12 / 14
+    </Text>
+</Slide>

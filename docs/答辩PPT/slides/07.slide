@@ -1,0 +1,102 @@
+<Slide style={{ background: '#FFFFFF', padding: '0px', position: 'relative', width: '100%', height: '100%' }}>
+    {/* 顶部深蓝条 */}
+    <Box style={{ position: 'absolute', top: 0, left: 0, width: 1280, height: 8, background: '#1E4FA8' }} />
+
+    {/* 标题区 */}
+    <Box style={{ position: 'absolute', left: 60, top: 40, width: 1160, flexDirection: 'column' }}>
+        <Text style={{ fontSize: 14, color: '#3D7BD9', letterSpacing: 2 }}>PART 02 · 核心技术 1</Text>
+        <Text style={{ fontSize: 32, color: '#0E3F8C', fontWeight: 'bold', marginTop: 6 }}>
+            关键词 + AI 双重重要性判定
+        </Text>
+    </Box>
+
+    {/* 左：判定流程 SVG */}
+    <Box style={{ position: 'absolute', left: 60, top: 130, width: 620, height: 480 }}>
+        <svg width={620} height={480} viewBox='0 0 620 480'>
+            {/* 背景 */}
+            <rect x='0' y='0' width='620' height='480' rx='12' fill='#F7F9FC' />
+            {/* 第一级：关键词 */}
+            <rect x='60' y='30' width='500' height='110' rx='10' fill='#FFFFFF' stroke='#3D7BD9' stroke-width='1.5' />
+            <rect x='80' y='46' width='100' height='28' rx='14' fill='#1E4FA8' />
+            <text x='130' y='65' font-size='13' fill='#FFFFFF' text-anchor='middle' font-weight='bold'>第一级</text>
+            <text x='170' y='78' font-size='16' font-weight='bold' fill='#0E3F8C'>关键词快速筛选</text>
+            <text x='170' y='106' font-size='13' fill='#4A5568'>内置 16 类 288 校园风险词库 · 每账号独立</text>
+            <text x='170' y='128' font-size='13' fill='#4A5568'>闲聊直接放行 · 控制 AI 成本</text>
+
+            {/* 箭头1 */}
+            <path d='M 310 140 L 310 165' stroke='#1E4FA8' stroke-width='2' />
+            <polygon points='305,162 315,162 310,170' fill='#1E4FA8' />
+            <text x='330' y='158' font-size='12' fill='#8B97A8'>命中候选</text>
+
+            {/* 第二级：AI 判定 */}
+            <rect x='60' y='175' width='500' height='140' rx='10' fill='#FFFFFF' stroke='#1E4FA8' stroke-width='2' />
+            <rect x='80' y='191' width='100' height='28' rx='14' fill='#0E3F8C' />
+            <text x='130' y='210' font-size='13' fill='#FFFFFF' text-anchor='middle' font-weight='bold'>第二级</text>
+            <text x='170' y='223' font-size='16' font-weight='bold' fill='#0E3F8C'>大模型精准判定</text>
+            <text x='170' y='250' font-size='13' fill='#4A5568'>deepseek-v4-flash-0731（思考模式）</text>
+            <text x='170' y='272' font-size='13' fill='#4A5568'>输出结构化 JSON：是否重要 / 原因</text>
+            <text x='170' y='294' font-size='13' fill='#4A5568'>处置建议 / 优先级 high|medium|low</text>
+
+            {/* 箭头2 */}
+            <path d='M 310 315 L 310 340' stroke='#1E4FA8' stroke-width='2' />
+            <polygon points='305,337 315,337 310,345' fill='#1E4FA8' />
+
+            {/* 结果分流 */}
+            <rect x='60' y='350' width='240' height='60' rx='10' fill='#F0F5FC' stroke='#3D7BD9' stroke-width='1.5' />
+            <text x='180' y='375' font-size='14' font-weight='bold' fill='#0E3F8C' text-anchor='middle'>重要 → 生成提醒</text>
+            <text x='180' y='396' font-size='12' fill='#4A5568' text-anchor='middle'>SSE 实时推送 + 站内提醒</text>
+            <rect x='320' y='350' width='240' height='60' rx='10' fill='#E8EFF8' stroke='#8B97A8' stroke-width='1' />
+            <text x='440' y='375' font-size='14' font-weight='bold' fill='#4A5568' text-anchor='middle'>不重要 → 忽略</text>
+            <text x='440' y='396' font-size='12' fill='#8B97A8' text-anchor='middle'>过滤测试消息与误报</text>
+        </svg>
+    </Box>
+
+    {/* 右：说明与效果 */}
+    <Box style={{
+        position: 'absolute', left: 720, top: 150,
+        width: 500, height: 460,
+        flexDirection: 'column', gap: 20,
+    }}>
+        <Box style={{
+            background: '#F0F5FC', borderRadius: 10, padding: '18px 22px',
+            borderLeft: '4px solid #1E4FA8',
+        }}>
+            <Text style={{ fontSize: 16, color: '#0E3F8C', fontWeight: 'bold', lineHeight: 1.6 }}>
+                兼顾速度与准确率：规则引擎秒级筛选 + 大模型深度理解
+            </Text>
+        </Box>
+        <Box style={{ flexDirection: 'column', gap: 14 }}>
+            <Box style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+                <FAIcon name='check-circle' style={{ fill: '#1E4FA8', width: 22, height: 22 }} />
+                <Text style={{ fontSize: 15, color: '#1A2230', lineHeight: 1.6 }}>
+                    着火 / 晕倒 / 失联 → <span style={{ fontWeight: 'bold', color: '#D9534F' }}>high 紧急</span>，给出处置建议
+                </Text>
+            </Box>
+            <Box style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+                <FAIcon name='check-circle' style={{ fill: '#3D7BD9', width: 22, height: 22 }} />
+                <Text style={{ fontSize: 15, color: '#1A2230', lineHeight: 1.6 }}>
+                    考试通知 / 资料发放 → <span style={{ fontWeight: 'bold', color: '#1E4FA8' }}>medium 事务</span>，提醒跟进
+                </Text>
+            </Box>
+            <Box style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+                <FAIcon name='times-circle' style={{ fill: '#8B97A8', width: 22, height: 22 }} />
+                <Text style={{ fontSize: 15, color: '#1A2230', lineHeight: 1.6 }}>
+                    「关键词测试」「食堂好吃」→ 自动忽略，不误报
+                </Text>
+            </Box>
+        </Box>
+        <Box style={{
+            background: '#E8EFF8', borderRadius: 10, padding: '16px 20px', marginTop: 8,
+        }}>
+            <Text style={{ fontSize: 15, color: '#1A2230', lineHeight: 1.7 }}>
+                <span style={{ fontWeight: 'bold', color: '#0E3F8C' }}>补判定机制</span>：关键词库更新后自动对当天
+                历史消息重新判定，新增关键词不漏历史重要消息。
+            </Text>
+        </Box>
+    </Box>
+
+    {/* 页码 */}
+    <Text style={{ position: 'absolute', right: 60, bottom: 40, fontSize: 14, color: '#8B97A8' }}>
+        7 / 14
+    </Text>
+</Slide>

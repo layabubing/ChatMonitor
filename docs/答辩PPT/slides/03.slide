@@ -1,0 +1,38 @@
+<Slide style={{ background: '#F7F9FC', padding: '0px', position: 'relative', width: '100%', height: '100%' }}>
+    {/* 中央大数字 01 */}
+    <Box style={{
+        position: 'absolute', left: 96, top: 60,
+        width: 1088, height: 600,
+        justifyContent: 'center', alignItems: 'center',
+        flexDirection: 'column',
+    }}>
+        <Text style={{
+            fontSize: 200, fontWeight: 'bold', color: '#1E4FA8',
+            lineHeight: 1, opacity: 0.92, letterSpacing: 8,
+        }}>
+            01
+        </Text>
+        <Box style={{ width: 480, height: 3, background: '#3D7BD9', marginTop: 28, marginBottom: 28 }} />
+        <Text style={{ fontSize: 40, color: '#0E3F8C', fontWeight: 'bold', marginBottom: 12 }}>
+            项目背景与需求
+        </Text>
+        <Text style={{ fontSize: 18, color: '#4A5568', marginTop: 8 }}>
+            校园群聊信息爆炸 → 重要信息被淹没 → 需要智能监控助手
+        </Text>
+    </Box>
+
+    {/* 左下角标 */}
+    <Text style={{
+        position: 'absolute', left: 60, bottom: 40,
+        fontSize: 14, color: '#8B97A8',
+    }}>
+        Part 01 · 项目背景与需求
+    </Text>
+    {/* 右下页码 */}
+    <Text style={{
+        position: 'absolute', right: 60, bottom: 40,
+        fontSize: 14, color: '#8B97A8',
+    }}>
+        3 / 14
+    </Text>
+</Slide>

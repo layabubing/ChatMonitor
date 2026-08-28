@@ -1,0 +1,38 @@
+<Slide style={{ background: '#F7F9FC', padding: '0px', position: 'relative', width: '100%', height: '100%' }}>
+    {/* 中央大数字 03（居左差异版） */}
+    <Box style={{
+        position: 'absolute', left: 96, top: 60,
+        width: 1088, height: 600,
+        justifyContent: 'center', alignItems: 'flex-start',
+        flexDirection: 'column', paddingLeft: 40,
+    }}>
+        <Text style={{
+            fontSize: 200, fontWeight: 'bold', color: '#0E3F8C',
+            lineHeight: 1, opacity: 0.9, letterSpacing: 8,
+        }}>
+            03
+        </Text>
+        <Box style={{ width: 480, height: 3, background: '#3D7BD9', marginTop: 28, marginBottom: 28 }} />
+        <Text style={{ fontSize: 40, color: '#0E3F8C', fontWeight: 'bold', marginBottom: 12 }}>
+            创新 · 验证 · 展望
+        </Text>
+        <Text style={{ fontSize: 18, color: '#4A5568', marginTop: 8 }}>
+            六大创新点 · 44 项自动化测试 · 真实群联调 · 应用前景
+        </Text>
+    </Box>
+
+    {/* 左下角标 */}
+    <Text style={{
+        position: 'absolute', left: 60, bottom: 40,
+        fontSize: 14, color: '#8B97A8',
+    }}>
+        Part 03 · 创新、验证与展望
+    </Text>
+    {/* 右下页码 */}
+    <Text style={{
+        position: 'absolute', right: 60, bottom: 40,
+        fontSize: 14, color: '#8B97A8',
+    }}>
+        11 / 14
+    </Text>
+</Slide>

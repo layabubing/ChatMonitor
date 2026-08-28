@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Runtime data (per-tenant DBs, media, commands, heartbeats)
+data/
+logs/
+reports/
+*.db
+*.db-wal
+*.db-shm
+*.alive
+
+# Secrets / local config (keep the *.example templates)
+configs/app.env
+configs/qq.env
+configs/dingtalk.env
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Archives / stale snapshots
+*.zip
+chat-monitor-updated/

@@ -1,0 +1,101 @@
+<Slide style={{ background: '#FFFFFF', padding: '0px', position: 'relative', width: '100%', height: '100%' }}>
+    {/* 顶部深蓝条 */}
+    <Box style={{ position: 'absolute', top: 0, left: 0, width: 1280, height: 8, background: '#1E4FA8' }} />
+
+    {/* 标题区 */}
+    <Box style={{ position: 'absolute', left: 60, top: 40, width: 1160, flexDirection: 'column' }}>
+        <Text style={{ fontSize: 14, color: '#3D7BD9', letterSpacing: 2 }}>PART 02 · 核心技术 2</Text>
+        <Text style={{ fontSize: 32, color: '#0E3F8C', fontWeight: 'bold', marginTop: 6 }}>
+            SSE 毫秒级实时推送
+        </Text>
+    </Box>
+
+    {/* 上：推送链路 SVG */}
+    <Box style={{ position: 'absolute', left: 60, top: 130, width: 1160, height: 260 }}>
+        <svg width={1160} height={260} viewBox='0 0 1160 260'>
+            <rect x='0' y='0' width='1160' height='260' rx='12' fill='#F7F9FC' />
+
+            {/* 步骤1 群消息 */}
+            <rect x='30' y='60' width='180' height='140' rx='10' fill='#FFFFFF' stroke='#3D7BD9' stroke-width='1.5' />
+            <text x='120' y='100' font-size='15' font-weight='bold' fill='#0E3F8C' text-anchor='middle'>群聊新消息</text>
+            <text x='120' y='126' font-size='12' fill='#4A5568' text-anchor='middle'>QQ / 钉钉群</text>
+            <text x='120' y='148' font-size='12' fill='#4A5568' text-anchor='middle'>worker 实时接收</text>
+            <text x='120' y='170' font-size='12' fill='#4A5568' text-anchor='middle'>入库 + 判定</text>
+
+            {/* 箭头1 */}
+            <path d='M 210 130 L 270 130' stroke='#1E4FA8' stroke-width='2.5' />
+            <polygon points='265,125 275,125 270,135' fill='#1E4FA8' />
+            <text x='240' y='112' font-size='12' fill='#8B97A8' text-anchor='middle'>入库</text>
+
+            {/* 步骤2 SQLite */}
+            <rect x='275' y='60' width='180' height='140' rx='10' fill='#FFFFFF' stroke='#3D7BD9' stroke-width='1.5' />
+            <text x='365' y='100' font-size='15' font-weight='bold' fill='#0E3F8C' text-anchor='middle'>SQLite 数据库</text>
+            <text x='365' y='126' font-size='12' fill='#4A5568' text-anchor='middle'>消息 / 提醒 / 报告</text>
+            <text x='365' y='148' font-size='12' fill='#4A5568' text-anchor='middle'>增量游标记录</text>
+            <text x='365' y='170' font-size='12' fill='#4A5568' text-anchor='middle'>MAX(ts/id)</text>
+
+            {/* 箭头2 */}
+            <path d='M 455 130 L 515 130' stroke='#1E4FA8' stroke-width='2.5' />
+            <polygon points='510,125 520,125 515,135' fill='#1E4FA8' />
+            <text x='485' y='112' font-size='12' fill='#8B97A8' text-anchor='middle'>2s 扫描</text>
+
+            {/* 步骤3 SSE 广播 */}
+            <rect x='520' y='60' width='200' height='140' rx='10' fill='#FFFFFF' stroke='#1E4FA8' stroke-width='2' />
+            <text x='620' y='100' font-size='15' font-weight='bold' fill='#0E3F8C' text-anchor='middle'>SSE 广播管理器</text>
+            <text x='620' y='126' font-size='12' fill='#4A5568' text-anchor='middle'>发现增量</text>
+            <text x='620' y='148' font-size='12' fill='#4A5568' text-anchor='middle'>推送事件到</text>
+            <text x='620' y='170' font-size='12' fill='#4A5568' text-anchor='middle'>所有在线连接</text>
+
+            {/* 箭头3 */}
+            <path d='M 720 130 L 780 130' stroke='#1E4FA8' stroke-width='2.5' />
+            <polygon points='775,125 785,125 780,135' fill='#1E4FA8' />
+
+            {/* 步骤4 浏览器 */}
+            <rect x='785' y='60' width='340' height='140' rx='10' fill='#F0F5FC' stroke='#1E4FA8' stroke-width='1.5' />
+            <text x='955' y='100' font-size='15' font-weight='bold' fill='#0E3F8C' text-anchor='middle'>浏览器（EventSource 监听）</text>
+            <text x='955' y='128' font-size='13' fill='#1A2230' text-anchor='middle'>新消息 → 列表即时刷新</text>
+            <text x='955' y='152' font-size='13' fill='#1A2230' text-anchor='middle'>新提醒 → 弹条提示 + 角标</text>
+            <text x='955' y='176' font-size='13' fill='#1A2230' text-anchor='middle'>新报告/文件 → 即时出现</text>
+        </svg>
+    </Box>
+
+    {/* 下：要点卡 */}
+    <Box style={{
+        position: 'absolute', left: 60, top: 420,
+        width: 1160, height: 220,
+        flexDirection: 'row', gap: 24,
+    }}>
+        <Box style={{
+            flex: 1, background: '#F0F5FC', borderRadius: 10, padding: '22px 26px',
+            flexDirection: 'column', justifyContent: 'center',
+        }}>
+            <Text style={{ fontSize: 30, color: '#1E4FA8', fontWeight: 'bold', marginBottom: 8 }}>2 秒</Text>
+            <Text style={{ fontSize: 15, color: '#1A2230', lineHeight: 1.6 }}>
+                后台增量扫描间隔，数据变化后毫秒级推送到达
+            </Text>
+        </Box>
+        <Box style={{
+            flex: 1, background: '#F0F5FC', borderRadius: 10, padding: '22px 26px',
+            flexDirection: 'column', justifyContent: 'center',
+        }}>
+            <Text style={{ fontSize: 30, color: '#1E4FA8', fontWeight: 'bold', marginBottom: 8 }}>零刷新</Text>
+            <Text style={{ fontSize: 15, color: '#1A2230', lineHeight: 1.6 }}>
+                网页保持打开即实时更新，无需手动刷新页面
+            </Text>
+        </Box>
+        <Box style={{
+            flex: 1, background: '#F0F5FC', borderRadius: 10, padding: '22px 26px',
+            flexDirection: 'column', justifyContent: 'center',
+        }}>
+            <Text style={{ fontSize: 30, color: '#1E4FA8', fontWeight: 'bold', marginBottom: 8 }}>双保险</Text>
+            <Text style={{ fontSize: 15, color: '#1A2230', lineHeight: 1.6 }}>
+                SSE 断线自动重连，5 秒轮询兜底，不丢任何更新
+            </Text>
+        </Box>
+    </Box>
+
+    {/* 页码 */}
+    <Text style={{ position: 'absolute', right: 60, bottom: 40, fontSize: 14, color: '#8B97A8' }}>
+        8 / 14
+    </Text>
+</Slide>

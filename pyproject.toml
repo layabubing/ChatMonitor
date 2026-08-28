@@ -1,0 +1,48 @@
+[project]
+name = "chat-monitor"
+version = "1.0.0"
+description = "聊天智能分析助手 — 多平台群聊消息 AI 分析与日报系统"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.27",
+    "websockets>=12.0",
+    "fastapi>=0.111",
+    "uvicorn>=0.30",
+    "apscheduler>=3.10",
+    "python-docx>=1.1",
+    "python-dotenv>=1.0",
+    "PyJWT>=2.8",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.6",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = [
+    "chat-monitor-updated",
+    "data",
+    "reports",
+    "docs",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = [
+    "E402",   # module import not at top (entry-point sys.path bootstrap)
+    "E501",   # line length handled by formatter
+    "E731",   # lambda assignment (used intentionally)
+    "B008",   # FastAPI Depends/Query defaults in signatures
+    "B904",   # raise ... from (HTTPException re-raise noise)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# 入口/测试含 sys.path 引导，禁止重排导入
+"test_offline.py" = ["E402", "I001"]
+"main.py" = ["E402", "I001"]
+"launcher.py" = ["E402", "I001"]

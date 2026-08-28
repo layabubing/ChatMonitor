@@ -1,0 +1,70 @@
+<Slide style={{ background: '#FFFFFF', padding: '0px', position: 'relative', width: '100%', height: '100%' }}>
+    {/* 顶部深蓝条 */}
+    <Box style={{
+        position: 'absolute', top: 0, left: 0,
+        width: 1280, height: 8, background: '#1E4FA8',
+    }} />
+
+    <Box style={{
+        position: 'absolute', left: 100, top: 96,
+        width: 1080,
+        flexDirection: 'column',
+    }}>
+        <Text style={{ fontSize: 36, color: '#0E3F8C', fontWeight: 'bold', marginBottom: 12 }}>
+            目 录
+        </Text>
+        <Text style={{ fontSize: 16, color: '#8B97A8', marginBottom: 48 }}>
+            CONTENTS
+        </Text>
+
+        <Box style={{ flexDirection: 'column', gap: 28 }}>
+            {/* 01 */}
+            <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 24 }}>
+                <Box style={{
+                    width: 64, height: 64, borderRadius: 8,
+                    background: '#1E4FA8', justifyContent: 'center', alignItems: 'center',
+                }}>
+                    <Text style={{ fontSize: 28, color: '#FFFFFF', fontWeight: 'bold' }}>01</Text>
+                </Box>
+                <Box>
+                    <Text style={{ fontSize: 26, color: '#1A2230', fontWeight: 'bold' }}>项目背景与需求</Text>
+                    <Text style={{ fontSize: 15, color: '#8B97A8', marginTop: 4 }}>群聊信息洪流下的痛点 · 需求分析</Text>
+                </Box>
+            </Box>
+            {/* 02 */}
+            <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 24 }}>
+                <Box style={{
+                    width: 64, height: 64, borderRadius: 8,
+                    background: '#3D7BD9', justifyContent: 'center', alignItems: 'center',
+                }}>
+                    <Text style={{ fontSize: 28, color: '#FFFFFF', fontWeight: 'bold' }}>02</Text>
+                </Box>
+                <Box>
+                    <Text style={{ fontSize: 26, color: '#1A2230', fontWeight: 'bold' }}>系统设计与核心技术</Text>
+                    <Text style={{ fontSize: 15, color: '#8B97A8', marginTop: 4 }}>总体架构 · 双重判定 · SSE 推送 · 文件库 · 安全加固</Text>
+                </Box>
+            </Box>
+            {/* 03 */}
+            <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 24 }}>
+                <Box style={{
+                    width: 64, height: 64, borderRadius: 8,
+                    background: '#0E3F8C', justifyContent: 'center', alignItems: 'center',
+                }}>
+                    <Text style={{ fontSize: 28, color: '#FFFFFF', fontWeight: 'bold' }}>03</Text>
+                </Box>
+                <Box>
+                    <Text style={{ fontSize: 26, color: '#1A2230', fontWeight: 'bold' }}>创新、验证与展望</Text>
+                    <Text style={{ fontSize: 15, color: '#8B97A8', marginTop: 4 }}>六大创新点 · 44 项测试 · 真实联调 · 应用前景</Text>
+                </Box>
+            </Box>
+        </Box>
+    </Box>
+
+    {/* 右下页码 */}
+    <Text style={{
+        position: 'absolute', right: 60, bottom: 40,
+        fontSize: 14, color: '#8B97A8',
+    }}>
+        2 / 14
+    </Text>
+</Slide>

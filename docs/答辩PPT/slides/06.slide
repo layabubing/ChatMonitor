@@ -1,0 +1,38 @@
+<Slide style={{ background: '#F7F9FC', padding: '0px', position: 'relative', width: '100%', height: '100%' }}>
+    {/* 中央大数字 02（右对齐差异版） */}
+    <Box style={{
+        position: 'absolute', right: 96, top: 60,
+        width: 1088, height: 600,
+        justifyContent: 'center', alignItems: 'flex-end',
+        flexDirection: 'column', paddingRight: 40,
+    }}>
+        <Text style={{
+            fontSize: 200, fontWeight: 'bold', color: '#3D7BD9',
+            lineHeight: 1, opacity: 0.9, letterSpacing: 8,
+        }}>
+            02
+        </Text>
+        <Box style={{ width: 480, height: 3, background: '#1E4FA8', marginTop: 28, marginBottom: 28 }} />
+        <Text style={{ fontSize: 40, color: '#0E3F8C', fontWeight: 'bold', marginBottom: 12 }}>
+            系统设计与核心技术
+        </Text>
+        <Text style={{ fontSize: 18, color: '#4A5568', marginTop: 8 }}>
+            四进程架构 · 双重判定 · SSE 推送 · 文件库 · 安全加固
+        </Text>
+    </Box>
+
+    {/* 左下角标 */}
+    <Text style={{
+        position: 'absolute', left: 60, bottom: 40,
+        fontSize: 14, color: '#8B97A8',
+    }}>
+        Part 02 · 系统设计与核心技术
+    </Text>
+    {/* 右下页码 */}
+    <Text style={{
+        position: 'absolute', right: 60, bottom: 40,
+        fontSize: 14, color: '#8B97A8',
+    }}>
+        6 / 14
+    </Text>
+</Slide>

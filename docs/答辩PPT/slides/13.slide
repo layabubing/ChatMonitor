@@ -1,0 +1,84 @@
+<Slide style={{ background: '#FFFFFF', padding: '0px', position: 'relative', width: '100%', height: '100%' }}>
+    {/* 顶部深蓝条 */}
+    <Box style={{ position: 'absolute', top: 0, left: 0, width: 1280, height: 8, background: '#1E4FA8' }} />
+
+    {/* 标题区 */}
+    <Box style={{ position: 'absolute', left: 60, top: 40, width: 1160, flexDirection: 'column' }}>
+        <Text style={{ fontSize: 14, color: '#3D7BD9', letterSpacing: 2 }}>PART 03 · 验证</Text>
+        <Text style={{ fontSize: 32, color: '#0E3F8C', fontWeight: 'bold', marginTop: 6 }}>
+            测试与验证：44 项自动化 + 真实群联调
+        </Text>
+    </Box>
+
+    {/* 巨型数字锚点 */}
+    <Box style={{
+        position: 'absolute', left: 60, top: 130,
+        width: 360, height: 520,
+        flexDirection: 'column', justifyContent: 'center',
+        background: 'linear-gradient(160deg, #0E3F8C 0%, #1E4FA8 100%)',
+        borderRadius: 16, padding: '0 48px',
+    }}>
+        <Text style={{ fontSize: 110, color: '#FFFFFF', fontWeight: 'bold', lineHeight: 1 }}>
+            44
+        </Text>
+        <Text style={{ fontSize: 24, color: '#B8CCF0', fontWeight: 'bold', marginTop: 12 }}>
+            项自动化检查
+        </Text>
+        <Text style={{ fontSize: 16, color: '#FFFFFF', opacity: 0.85, marginTop: 16, lineHeight: 1.6 }}>
+            全部通过，覆盖入库去重 / 关键词 / AI 判定 / 日报 / Web API / 多租户隔离 / 安全
+        </Text>
+        <Box style={{ width: 80, height: 3, background: '#FFFFFF', opacity: 0.4, marginTop: 20 }} />
+        <Text style={{ fontSize: 16, color: '#B8CCF0', marginTop: 16 }}>
+            + 真实 QQ 群端到端联调
+        </Text>
+    </Box>
+
+    {/* 右侧验证清单表 */}
+    <Box style={{
+        position: 'absolute', left: 460, top: 130,
+        width: 760, height: 520,
+        flexDirection: 'column', gap: 8,
+    }}>
+        {[
+            ['QQ 凭证与网关', '真实 AppID/Secret 获取令牌，WebSocket 收到 READY 在线', '✅'],
+            ['消息实时入库', '群里实际发言 → 数据库消息数即时增长', '✅'],
+            ['AI 重要性判定', '着火→high / 考试通知→medium / 闲聊→忽略', '✅'],
+            ['SSE 实时推送', '插入新提醒 → 2 秒内浏览器收到 alert 事件', '✅'],
+            ['文件与语音识别', '真实图片经视觉模型识别；语音转写链路全通', '✅'],
+            ['安全加固实测', '错误密码 5 次锁定 429 / 跨站 POST 403 / 改密旧 token 失效', '✅'],
+            ['多租户隔离', '双账号端到端：绑定/数据/媒体互不可见，越权访问 400', '✅'],
+            ['动态实例接入', '新账号绑定机器人 15 秒自动接入独立连接并收消息', '✅'],
+            ['新账号完整流程', '注册→自动登录→总览/消息/文件/报告全部 200', '✅'],
+        ].map(([k, v, ok], i) => (
+            <Box key={i} style={{
+                flexDirection: 'row', gap: 16, alignItems: 'center',
+                background: i % 2 === 0 ? '#F0F5FC' : '#F7F9FC',
+                borderRadius: 10, padding: '9px 18px',
+                border: '1px solid #E5E7EB',
+            }}>
+                <Box style={{ width: 140, flexShrink: 0 }}>
+                    <Text style={{ fontSize: 14, color: '#0E3F8C', fontWeight: 'bold' }}>{k}</Text>
+                </Box>
+                <Box style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, color: '#4A5568', lineHeight: 1.4 }}>{v}</Text>
+                </Box>
+                <Text style={{ fontSize: 17, color: '#1E4FA8', fontWeight: 'bold', width: 28, textAlign: 'center' }}>
+                    {ok}
+                </Text>
+            </Box>
+        ))}
+        <Box style={{
+            background: '#E8EFF8', borderRadius: 10, padding: '11px 18px',
+            borderLeft: '4px solid #1E4FA8',
+        }}>
+            <Text style={{ fontSize: 13, color: '#0E3F8C', fontWeight: 'bold', lineHeight: 1.5 }}>
+                结论：系统真实可用、工程完整 —— 不是概念演示，而是可上线的完整产品
+            </Text>
+        </Box>
+    </Box>
+
+    {/* 页码 */}
+    <Text style={{ position: 'absolute', right: 60, bottom: 40, fontSize: 14, color: '#8B97A8' }}>
+        13 / 14
+    </Text>
+</Slide>

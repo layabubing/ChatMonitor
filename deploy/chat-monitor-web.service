@@ -1,0 +1,15 @@
+[Unit]
+Description=Chat Monitor Web UI (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/chat-monitor
+# Linux venv 的 python 在 .venv/bin/ 下
+ExecStart=/opt/chat-monitor/.venv/bin/python main.py web
+Restart=always
+RestartSec=5
+User=www-data
+
+[Install]
+WantedBy=multi-user.target
