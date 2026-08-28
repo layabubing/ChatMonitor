@@ -19,13 +19,13 @@
 
 ### 进程拓扑
 
-```
+````
 浏览器 ─HTTPS→ Nginx(:443) ─反代→ FastAPI Web(:8001, 仅127.0.0.1)
                                       ├─ worker-qq       (为每个启用绑定的用户创建独立连接实例)
                                       ├─ worker-dingtalk (同上)
                                       └─ 命令文件通道 data/commands/{platform}__{user}.json
 多租户数据: data/users/{username}/  → qq.db / dingtalk.db / reports/ / media/
-```
+````
 
 ### 分层与依赖方向
 
