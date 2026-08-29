@@ -59,6 +59,8 @@
         <div class="seg" id="msgPlatform">
           <button data-p="qq" class="active">QQ</button>
           <button data-p="dingtalk">钉钉</button>
+          <button data-p="feishu">飞书</button>
+          <button data-p="workwechat">企业微信</button>
         </div>
         <select id="msgGroup"><option value="">全部群</option></select>
         <div class="spacer"></div>
@@ -85,6 +87,8 @@
           <button data-p="" class="active">全部</button>
           <button data-p="qq">QQ</button>
           <button data-p="dingtalk">钉钉</button>
+          <button data-p="feishu">飞书</button>
+          <button data-p="workwechat">企业微信</button>
         </div>
         <label class="check"><input type="checkbox" id="alertUnread" checked> 仅看未读</label>
         <div class="spacer"></div>
@@ -104,6 +108,8 @@
           <button data-p="" class="active">全部</button>
           <button data-p="qq">QQ</button>
           <button data-p="dingtalk">钉钉</button>
+          <button data-p="feishu">飞书</button>
+          <button data-p="workwechat">企业微信</button>
         </div>
       </div>
       <div id="repList"></div>
@@ -120,6 +126,8 @@
           <button data-p="" class="active">全部</button>
           <button data-p="qq">QQ</button>
           <button data-p="dingtalk">钉钉</button>
+          <button data-p="feishu">飞书</button>
+          <button data-p="workwechat">企业微信</button>
         </div>
         <select id="fileCategory"><option value="">全部分类</option></select>
         <label class="check"><input type="checkbox" id="fileImportant"> 仅重要</label>
@@ -200,6 +208,35 @@
                 <button class="btn primary" id="dt_save">保存</button>
               </div>
               <div class="bind-status" id="dt_status"></div>
+            </div>
+            <div class="card">
+              <h3>🔗 我的飞书账号绑定 <span class="hint-inline">长连接模式，无需公网回调</span></h3>
+              <div class="bind-row"><label>App ID</label><input type="text" id="fs_app_id" placeholder="飞书开放平台 App ID（cli_ 开头）"></div>
+              <div class="bind-row"><label>App Secret</label><input type="password" id="fs_app_secret" placeholder="已设置则留空不变"></div>
+              <div class="bind-row"><label>监控群 chat_id（逗号分隔，留空=全部）</label><input type="text" id="fs_chat_ids"></div>
+              <div class="bind-row"><label>启用</label>
+                <select id="fs_enabled"><option value="true">启用</option><option value="false">停用</option></select></div>
+              <div class="actions row-flex" style="margin-top:12px">
+                <button class="btn" id="fs_test">测试连接</button>
+                <button class="btn primary" id="fs_save">保存</button>
+              </div>
+              <div class="bind-status" id="fs_status"></div>
+            </div>
+            <div class="card">
+              <h3>🔗 我的企业微信绑定 <span class="hint-inline">回调模式，需公网可达</span></h3>
+              <div class="bind-row"><label>企业 ID（CorpID）</label><input type="text" id="ww_corp_id" placeholder="企业微信管理后台 CorpID"></div>
+              <div class="bind-row"><label>应用 AgentId</label><input type="text" id="ww_agent_id" placeholder="自建应用的 AgentId"></div>
+              <div class="bind-row"><label>应用 Secret</label><input type="password" id="ww_secret" placeholder="已设置则留空不变"></div>
+              <div class="bind-row"><label>回调 Token</label><input type="password" id="ww_token" placeholder="应用回调配置里的 Token"></div>
+              <div class="bind-row"><label>EncodingAESKey（43位）</label><input type="password" id="ww_aes_key" placeholder="已设置则留空不变"></div>
+              <div class="bind-row"><label>监控群 ChatId（逗号分隔，留空=全部）</label><input type="text" id="ww_chat_ids"></div>
+              <div class="bind-row"><label>启用</label>
+                <select id="ww_enabled"><option value="true">启用</option><option value="false">停用</option></select></div>
+              <div class="actions row-flex" style="margin-top:12px">
+                <button class="btn" id="ww_test">测试连接</button>
+                <button class="btn primary" id="ww_save">保存</button>
+              </div>
+              <div class="bind-status" id="ww_status"></div>
             </div>
           </div>
 

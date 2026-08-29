@@ -1,7 +1,7 @@
 /* 基础工具：DOM 选择、API 封装、格式化、toast */
 
 export const $ = (id) => document.getElementById(id);
-export const PLATFORM_NAMES = { qq: 'QQ', dingtalk: '钉钉' };
+export const PLATFORM_NAMES = { qq: 'QQ', dingtalk: '钉钉', feishu: '飞书', workwechat: '企业微信' };
 
 /** HTML 转义（防 XSS），一律用于插入 innerHTML 的用户/消息文本 */
 export function esc(s) {

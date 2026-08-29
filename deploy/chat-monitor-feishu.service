@@ -1,0 +1,14 @@
+[Unit]
+Description=Chat Monitor Feishu Worker
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/chat-monitor
+ExecStart=/opt/chat-monitor/.venv/bin/python main.py feishu
+Restart=always
+RestartSec=5
+User=www-data
+
+[Install]
+WantedBy=multi-user.target

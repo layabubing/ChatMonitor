@@ -13,14 +13,15 @@ if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
 from core import console  # noqa: E402
+from config import PLATFORMS  # noqa: E402
 
 console.setup()   # Windows 控制台 UTF-8，避免 emoji 日志崩溃
 
 
 def launch_all() -> None:
     procs = []
-    targets = ["qq", "dingtalk", "web"]
-    print("[launcher] 启动全部进程: qq, dingtalk, web …")
+    targets = [*PLATFORMS, "web"]
+    print(f"[launcher] 启动全部进程: {', '.join(targets)} …")
     for t in targets:
         p = subprocess.Popen(
             [sys.executable, str(BASE_DIR / "main.py"), t],

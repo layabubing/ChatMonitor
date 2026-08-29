@@ -82,23 +82,17 @@ async def api_test_platform_binding(name: str, request: Request):
         if body.get(k) is not None:
             cfg[k] = str(body[k]).strip()
     try:
-        if name == "qq":
-            resp = httpx.post("https://bots.qq.com/app/getAppAccessToken",
-                              json={"appId": cfg.get("QQ_APP_ID", ""),
-                                    "clientSecret": cfg.get("QQ_APP_SECRET", "")},
-                              timeout=15)
-            data = resp.json()
-            ok = bool(data.get("access_token"))
-            detail = (f"获取到 access_token（{len(data.get('access_token', ''))} 字符）"
-                      if ok else f"失败: {data.get('message', resp.text[:150])}")
-        else:  # dingtalk
-            resp = httpx.post("https://api.dingtalk.com/v1.0/oauth2/accessToken",
-                              json={"appKey": cfg.get("DINGTALK_APP_KEY", ""),
-                                    "appSecret": cfg.get("DINGTALK_APP_SECRET", "")},
-                              timeout=15)
-            data = resp.json()
-            ok = bool(data.get("accessToken"))
-            detail = "获取到 accessToken，凭证有效" if ok else f"失败: {data.get('message', resp.text[:150])}"
+        t = config.PLATFORM_META[name]["test"]
+        if t.get("method", "POST") == "GET":
+            resp = httpx.get(t["url"], params=t["params"](cfg), timeout=15)
+        else:
+            resp = httpx.post(t["url"], json=t["body"](cfg), timeout=15)
+        data = resp.json()
+        field = t["ok_field"]
+        val = data.get(field, "")
+        ok = bool(val)
+        detail = (f"获取到 {field}（{len(str(val))} 字符）"
+                  if ok else f"失败: {data.get('errmsg') or data.get('message') or resp.text[:150]}")
         return {"ok": ok, "detail": detail}
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "detail": f"网络错误: {e}"}

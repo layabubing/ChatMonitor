@@ -12,7 +12,76 @@ COMMANDS_DIR = DATA_DIR / "commands"
 REPORTS_DIR = BASE_DIR / "reports"
 LOGS_DIR = BASE_DIR / "logs"
 
-PLATFORMS = ["qq", "dingtalk"]
+# ── 平台注册表（单一事实来源：新增平台 = 这里加一行 + platforms/ 加适配器） ──
+PLATFORM_META = {
+    "qq": {
+        "display_name": "QQ",
+        "enabled_key": "QQ_ENABLED",
+        "app_id_key": "QQ_APP_ID",
+        "groups_key": "QQ_GROUP_OPENIDS",
+        "keys": ["QQ_APP_ID", "QQ_APP_SECRET", "QQ_ENV", "QQ_GROUP_OPENIDS", "QQ_ENABLED"],
+        "secret_keys": ["QQ_APP_SECRET"],
+        "adapter": "platforms.qq:QQAdapter",
+        "test": {
+            "method": "POST",
+            "url": "https://bots.qq.com/app/getAppAccessToken",
+            "body": lambda c: {"appId": c.get("QQ_APP_ID", ""),
+                               "clientSecret": c.get("QQ_APP_SECRET", "")},
+            "ok_field": "access_token",
+        },
+    },
+    "dingtalk": {
+        "display_name": "钉钉",
+        "enabled_key": "DINGTALK_ENABLED",
+        "app_id_key": "DINGTALK_APP_KEY",
+        "groups_key": "DINGTALK_CHAT_IDS",
+        "keys": ["DINGTALK_APP_KEY", "DINGTALK_APP_SECRET", "DINGTALK_CHAT_IDS", "DINGTALK_ENABLED"],
+        "secret_keys": ["DINGTALK_APP_SECRET"],
+        "adapter": "platforms.dingtalk:DingTalkAdapter",
+        "test": {
+            "method": "POST",
+            "url": "https://api.dingtalk.com/v1.0/oauth2/accessToken",
+            "body": lambda c: {"appKey": c.get("DINGTALK_APP_KEY", ""),
+                               "appSecret": c.get("DINGTALK_APP_SECRET", "")},
+            "ok_field": "accessToken",
+        },
+    },
+    "feishu": {
+        "display_name": "飞书",
+        "enabled_key": "FEISHU_ENABLED",
+        "app_id_key": "FEISHU_APP_ID",
+        "groups_key": "FEISHU_CHAT_IDS",
+        "keys": ["FEISHU_APP_ID", "FEISHU_APP_SECRET", "FEISHU_CHAT_IDS", "FEISHU_ENABLED"],
+        "secret_keys": ["FEISHU_APP_SECRET"],
+        "adapter": "platforms.feishu:FeishuAdapter",
+        "test": {
+            "method": "POST",
+            "url": "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal",
+            "body": lambda c: {"app_id": c.get("FEISHU_APP_ID", ""),
+                               "app_secret": c.get("FEISHU_APP_SECRET", "")},
+            "ok_field": "tenant_access_token",
+        },
+    },
+    "workwechat": {
+        "display_name": "企业微信",
+        "enabled_key": "WORKWECHAT_ENABLED",
+        "app_id_key": "WORKWECHAT_CORP_ID",
+        "groups_key": "WORKWECHAT_CHAT_IDS",
+        "keys": ["WORKWECHAT_CORP_ID", "WORKWECHAT_AGENT_ID", "WORKWECHAT_SECRET",
+                 "WORKWECHAT_TOKEN", "WORKWECHAT_AES_KEY", "WORKWECHAT_CHAT_IDS",
+                 "WORKWECHAT_ENABLED"],
+        "secret_keys": ["WORKWECHAT_SECRET", "WORKWECHAT_TOKEN", "WORKWECHAT_AES_KEY"],
+        "adapter": "platforms.workwechat:WorkWechatAdapter",
+        "test": {
+            "method": "GET",
+            "url": "https://qyapi.weixin.qq.com/cgi-bin/gettoken",
+            "params": lambda c: {"corpid": c.get("WORKWECHAT_CORP_ID", ""),
+                                 "corpsecret": c.get("WORKWECHAT_SECRET", "")},
+            "ok_field": "access_token",
+        },
+    },
+}
+PLATFORMS = list(PLATFORM_META)
 
 # ── 默认值（可被 .env 覆盖） ──
 DEFAULTS = {
@@ -38,6 +107,8 @@ DEFAULTS = {
     "SERVERCHAN_KEY": "",
     "QQ_ENABLED": "false",
     "DINGTALK_ENABLED": "false",
+    "FEISHU_ENABLED": "false",
+    "WORKWECHAT_ENABLED": "false",
 }
 
 

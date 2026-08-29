@@ -1,0 +1,14 @@
+[Unit]
+Description=Chat Monitor WorkWechat Worker
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/chat-monitor
+ExecStart=/opt/chat-monitor/.venv/bin/python main.py workwechat
+Restart=always
+RestartSec=5
+User=www-data
+
+[Install]
+WantedBy=multi-user.target

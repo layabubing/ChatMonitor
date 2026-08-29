@@ -35,13 +35,13 @@ def is_alive(platform: str, username: str = "") -> bool:
     """通过 alive 心跳文件判断 worker 是否在运行（多租户，见原逻辑注释）。"""
     global_cfg = get_platform_config(platform)
     global_enabled = global_cfg.get(f"{platform.upper()}_ENABLED", "false") == "true"
-    global_id = global_cfg.get("QQ_APP_ID" if platform == "qq" else "DINGTALK_APP_KEY", "")
+    app_id_key = config.PLATFORM_META[platform]["app_id_key"]
+    global_id = global_cfg.get(app_id_key, "")
     if username:
         b = accounts.get_user_binding(username, platform)
         if not b or not b.get("enabled"):
             return False   # 未绑定/未启用 → 未运行
-        user_id = (b.get("config") or {}).get(
-            "QQ_APP_ID" if platform == "qq" else "DINGTALK_APP_KEY", "")
+        user_id = (b.get("config") or {}).get(app_id_key, "")
         # 仅当全局启用 且 凭证与全局相同 → 共享全局实例；否则用户独立实例
         if global_enabled and user_id and user_id == global_id:
             p = DATA_DIR / f"{platform}.alive"
@@ -87,12 +87,13 @@ def mask(text: str) -> str:
 
 
 def mask_platform_config(name: str, cfg: dict) -> dict:
-    """平台配置脱敏返回（密钥只回显掩码）。"""
+    """平台配置脱敏返回（密钥只回显掩码；由 PLATFORM_META 注册表驱动）。"""
     out = {}
-    for k in ("QQ_APP_ID", "QQ_APP_SECRET", "QQ_ENV", "QQ_GROUP_OPENIDS", "QQ_ENABLED",
-              "DINGTALK_APP_KEY", "DINGTALK_APP_SECRET", "DINGTALK_CHAT_IDS", "DINGTALK_ENABLED"):
+    meta = config.PLATFORM_META.get(name, {})
+    secret_keys = set(meta.get("secret_keys", []))
+    for k in meta.get("keys", []):
         v = cfg.get(k, "")
-        if k in ("QQ_APP_SECRET", "DINGTALK_APP_SECRET"):
+        if k in secret_keys:
             out[k] = mask(v)
             out[k + "_SET"] = bool(v)
         else:

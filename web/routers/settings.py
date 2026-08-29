@@ -23,7 +23,7 @@ async def api_settings(request: Request):
         platforms.append({
             "name": p,
             "enabled": bool((b or {}).get("enabled")),
-            "groups": cfg.get("DINGTALK_CHAT_IDS" if p == "dingtalk" else "QQ_GROUP_OPENIDS", ""),
+            "groups": cfg.get(config.PLATFORM_META[p].get("groups_key", ""), ""),
             "report_time": f"{app_cfg.get('REPORT_HOUR', '18')}:{app_cfg.get('REPORT_MINUTE', '0')}",
             "running": deps.is_alive(p, user["username"]),
         })

@@ -83,11 +83,13 @@ class PlatformAdapter(abc.ABC):
 
     @staticmethod
     def create(platform: str, config: dict, username: str = "") -> PlatformAdapter:
-        """工厂：创建平台适配器实例（username 指定时为多租户用户实例）"""
-        if platform == "qq":
-            from platforms.qq import QQAdapter
-            return QQAdapter(config, username)
-        if platform == "dingtalk":
-            from platforms.dingtalk import DingTalkAdapter
-            return DingTalkAdapter(config, username)
-        raise ValueError(f"未知平台: {platform}")
+        """工厂：按 PLATFORM_META 注册表创建平台适配器实例（username 指定时为多租户用户实例）"""
+        import importlib
+
+        from config import PLATFORM_META
+        meta = PLATFORM_META.get(platform)
+        if not meta:
+            raise ValueError(f"未知平台: {platform}")
+        mod_path, cls_name = meta["adapter"].split(":")
+        cls = getattr(importlib.import_module(mod_path), cls_name)
+        return cls(config, username)

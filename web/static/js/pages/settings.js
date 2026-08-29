@@ -29,10 +29,11 @@ export function init() {
   $('savePwd').addEventListener('click', savePassword);
 
   // 绑定
-  $('qq_test').addEventListener('click', () => testBinding('qq'));
-  $('qq_save').addEventListener('click', () => saveBinding('qq'));
-  $('dt_test').addEventListener('click', () => testBinding('dingtalk'));
-  $('dt_save').addEventListener('click', () => saveBinding('dingtalk'));
+  ['qq', 'dingtalk', 'feishu', 'workwechat'].forEach((p) => {
+    const f = FIELD_MAP[p];
+    $(`${f.testId}_test`).addEventListener('click', () => testBinding(p));
+    $(`${f.testId}_save`).addEventListener('click', () => saveBinding(p));
+  });
 
   // 关键词：事件委托（del/add/del-cat），无 inline onclick
   $('kwAddCat').addEventListener('click', addCategory);
@@ -64,7 +65,7 @@ export async function load() {
     renderAiInfo(s);
     kwData = s.keywords || {};
     renderKeywords();
-    await Promise.all([loadBinding('qq'), loadBinding('dingtalk')]);
+    await Promise.all(Object.keys(FIELD_MAP).map(loadBinding));
   } catch (e) { toast(e.message, true); }
 }
 
@@ -91,10 +92,38 @@ async function savePassword() {
   } catch (e) { toast(e.message, true); }
 }
 
-// ── 平台绑定 ──
+// ── 平台绑定（注册表驱动：新增平台 = 这里加一行 + index.html 加表单） ──
 const FIELD_MAP = {
-  qq: { id: 'qq_app_id', secret: 'qq_app_secret', env: 'qq_env', groups: 'qq_groups', enabled: 'qq_enabled', status: 'qq_status' },
-  dingtalk: { id: 'dt_app_key', secret: 'dt_app_secret', groups: 'dt_chat_ids', enabled: 'dt_enabled', status: 'dt_status' },
+  qq: {
+    testId: 'qq', id: 'qq_app_id', id_key: 'QQ_APP_ID',
+    secret: 'qq_app_secret', secret_key: 'QQ_APP_SECRET',
+    env: 'qq_env', env_key: 'QQ_ENV',
+    groups: 'qq_groups', groups_key: 'QQ_GROUP_OPENIDS',
+    enabled: 'qq_enabled', enabled_key: 'QQ_ENABLED', status: 'qq_status',
+  },
+  dingtalk: {
+    testId: 'dt', id: 'dt_app_key', id_key: 'DINGTALK_APP_KEY',
+    secret: 'dt_app_secret', secret_key: 'DINGTALK_APP_SECRET',
+    groups: 'dt_chat_ids', groups_key: 'DINGTALK_CHAT_IDS',
+    enabled: 'dt_enabled', enabled_key: 'DINGTALK_ENABLED', status: 'dt_status',
+  },
+  feishu: {
+    testId: 'fs', id: 'fs_app_id', id_key: 'FEISHU_APP_ID',
+    secret: 'fs_app_secret', secret_key: 'FEISHU_APP_SECRET',
+    groups: 'fs_chat_ids', groups_key: 'FEISHU_CHAT_IDS',
+    enabled: 'fs_enabled', enabled_key: 'FEISHU_ENABLED', status: 'fs_status',
+  },
+  workwechat: {
+    testId: 'ww', id: 'ww_corp_id', id_key: 'WORKWECHAT_CORP_ID',
+    secret: 'ww_secret', secret_key: 'WORKWECHAT_SECRET',
+    groups: 'ww_chat_ids', groups_key: 'WORKWECHAT_CHAT_IDS',
+    enabled: 'ww_enabled', enabled_key: 'WORKWECHAT_ENABLED', status: 'ww_status',
+    extra: [
+      { id: 'ww_agent_id', key: 'WORKWECHAT_AGENT_ID' },
+      { id: 'ww_token', key: 'WORKWECHAT_TOKEN', secret: true },
+      { id: 'ww_aes_key', key: 'WORKWECHAT_AES_KEY', secret: true },
+    ],
+  },
 };
 
 async function loadBinding(platform) {
@@ -102,16 +131,20 @@ async function loadBinding(platform) {
   try {
     const d = await api(`/api/settings/platforms/${platform}`);
     const c = d.config;
-    const enabled = c.enabled !== undefined ? c.enabled : (c.QQ_ENABLED === 'true' || c.DINGTALK_ENABLED === 'true');
-    if (platform === 'qq') {
-      $(F.id).value = c.QQ_APP_ID || '';
-      $(F.secret).placeholder = c.QQ_APP_SECRET_SET ? `已设置 ${c.QQ_APP_SECRET}（留空不变）` : '未设置';
-      $(F.env).value = c.QQ_ENV === 'sandbox' ? 'sandbox' : 'prod';
-      $(F.groups).value = c.QQ_GROUP_OPENIDS || '';
-    } else {
-      $(F.id).value = c.DINGTALK_APP_KEY || '';
-      $(F.secret).placeholder = c.DINGTALK_APP_SECRET_SET ? `已设置 ${c.DINGTALK_APP_SECRET}（留空不变）` : '未设置';
-      $(F.groups).value = c.DINGTALK_CHAT_IDS || '';
+    const enabled = c.enabled !== undefined ? c.enabled : (c[F.enabled_key] === 'true');
+    if (F.env) $(F.env).value = (c[F.env_key] === 'sandbox' ? 'sandbox' : 'prod');
+    $(F.id).value = c[F.id_key] || '';
+    $(F.secret).placeholder = c[F.secret_key + '_SET'] ? `已设置 ${c[F.secret_key]}（留空不变）` : '未设置';
+    if (F.groups) $(F.groups).value = c[F.groups_key] || '';
+    for (const ex of (F.extra || [])) {
+      const el = $(ex.id);
+      if (!el) continue;
+      if (ex.secret) {
+        el.placeholder = c[ex.key + '_SET'] ? `已设置 ${c[ex.key]}（留空不变）` : '未设置';
+        el.value = '';
+      } else {
+        el.value = c[ex.key] || '';
+      }
     }
     $(F.secret).value = '';
     $(F.enabled).value = enabled ? 'true' : 'false';
@@ -123,17 +156,14 @@ function collectBinding(platform) {
   const body = {};
   const idVal = $(F.id).value.trim();
   const secretVal = $(F.secret).value.trim();
-  if (platform === 'qq') {
-    if (idVal) body.QQ_APP_ID = idVal;
-    if (secretVal) body.QQ_APP_SECRET = secretVal;
-    if ($(F.env)) body.QQ_ENV = $(F.env).value;
-    if ($(F.groups)) body.QQ_GROUP_OPENIDS = $(F.groups).value.trim();
-    if ($(F.enabled)) body.QQ_ENABLED = $(F.enabled).value;
-  } else {
-    if (idVal) body.DINGTALK_APP_KEY = idVal;
-    if (secretVal) body.DINGTALK_APP_SECRET = secretVal;
-    if ($(F.groups)) body.DINGTALK_CHAT_IDS = $(F.groups).value.trim();
-    if ($(F.enabled)) body.DINGTALK_ENABLED = $(F.enabled).value;
+  if (idVal) body[F.id_key] = idVal;
+  if (secretVal) body[F.secret_key] = secretVal;
+  if (F.env && $(F.env)) body[F.env_key] = $(F.env).value;
+  if (F.groups && $(F.groups)) body[F.groups_key] = $(F.groups).value.trim();
+  if (F.enabled && $(F.enabled)) body[F.enabled_key] = $(F.enabled).value;
+  for (const ex of (F.extra || [])) {
+    const el = $(ex.id);
+    if (el && el.value.trim()) body[ex.key] = el.value.trim();
   }
   return body;
 }

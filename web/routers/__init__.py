@@ -16,6 +16,7 @@ from web.routers import (
     reports,
     settings,
     stream,
+    workwechat,
 )
 
 # 装配顺序（路径互不冲突，顺序不影响匹配，仅为可读性归类）
@@ -31,6 +32,7 @@ all_routers = [
     files.router,
     settings.router,
     stream.router,
+    workwechat.router,
 ]
 
 __all__ = ["all_routers"]

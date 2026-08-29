@@ -6,11 +6,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-# 各平台允许写入的配置键白名单
-PLATFORM_KEYS = {
-    "qq": ["QQ_APP_ID", "QQ_APP_SECRET", "QQ_ENV", "QQ_GROUP_OPENIDS", "QQ_ENABLED"],
-    "dingtalk": ["DINGTALK_APP_KEY", "DINGTALK_APP_SECRET", "DINGTALK_CHAT_IDS", "DINGTALK_ENABLED"],
-}
+from config import PLATFORM_META
+
+# 各平台允许写入的配置键白名单（由 PLATFORM_META 注册表派生，新增平台自动生效）
+PLATFORM_KEYS = {p: list(m["keys"]) for p, m in PLATFORM_META.items()}
 
 
 def allowed_keys(platform: str) -> list[str]:

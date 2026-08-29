@@ -18,8 +18,8 @@ if str(BASE_DIR) not in sys.path:
 
 from apscheduler.schedulers.background import BackgroundScheduler  # noqa: E402
 
-from config import (DATA_DIR, PLATFORMS, ensure_dirs, get_platform_config,  # noqa: E402
-                    platform_db_path)  # noqa: E402
+from config import (DATA_DIR, PLATFORM_META, PLATFORMS, ensure_dirs,  # noqa: E402
+                    get_platform_config, platform_db_path)  # noqa: E402
 from core import accounts, commands, console, keywords  # noqa: E402
 
 console.setup()   # Windows 控制台 UTF-8，避免 emoji 日志崩溃
@@ -34,7 +34,8 @@ def _collect_instances(platform: str, config: dict) -> list[dict]:
     """收集实例：全局（旧配置兼容）+ 每个启用绑定的用户（动态扫描，供定期重扫）"""
     instances: list[dict] = []
     global_enabled = config.get(f"{platform.upper()}_ENABLED", "false") == "true"
-    global_appid = config.get("QQ_APP_ID" if platform == "qq" else "DINGTALK_APP_KEY", "")
+    app_id_key = PLATFORM_META[platform]["app_id_key"]
+    global_appid = config.get(app_id_key, "")
     # 全局实例（qq.env/dingtalk.env 仍启用时）
     if global_enabled and global_appid:
         instances.append({"username": "", "config": config})
@@ -45,7 +46,7 @@ def _collect_instances(platform: str, config: dict) -> list[dict]:
         cfg = dict(config)
         cfg.update(u["config"])
         cfg[f"{platform.upper()}_ENABLED"] = "true"
-        u_appid = cfg.get("QQ_APP_ID" if platform == "qq" else "DINGTALK_APP_KEY", "")
+        u_appid = cfg.get(app_id_key, "")
         if global_enabled and u_appid and u_appid == global_appid:
             print(f"[{platform}] 用户 {u['username']} 的凭证与全局相同，复用全局实例")
             continue
