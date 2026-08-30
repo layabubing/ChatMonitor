@@ -1,0 +1,30 @@
+name: chat_monitor
+description: "ChatMonitor 安卓客户端：群聊监控、重要提醒、日报查看。"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  dio: ^5.7.0
+  shared_preferences: ^2.3.0
+  path_provider: ^2.1.4
+  intl: ^0.20.2
+  webview_flutter: ^4.10.0
+  open_filex: ^4.5.0
+  flutter_local_notifications: ^17.2.3
+  flutter_foreground_task: ^8.7.0
+  workmanager: ^0.10.9
+  app_settings: ^5.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

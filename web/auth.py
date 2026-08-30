@@ -82,6 +82,11 @@ def verify_token(token: str) -> dict | None:
 def check_login(request: Request) -> dict | None:
     """返回 {username, role, nickname} 或 None。"""
     token = request.cookies.get(COOKIE_NAME)
+    if not token:
+        # 移动端回退：Authorization: Bearer <jwt>（网页端仍走 Cookie）
+        authz = request.headers.get("authorization", "")
+        if authz.lower().startswith("bearer "):
+            token = authz[7:].strip()
     return verify_token(token) if token else None
 
 

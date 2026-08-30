@@ -34,8 +34,8 @@ class MessageRepo:
         return added_ids
 
     def query_messages(self, platform: str, group: str = "", q: str = "",
-                       page: int = 1, page_size: int = 50) -> dict:
-        """分页查询消息（media_urls 自动解析为列表）。"""
+                       page: int = 1, page_size: int = 50, since_ts: int = 0) -> dict:
+        """分页查询消息（media_urls 自动解析为列表）；since_ts>0 时只返回该时间戳之后的消息。"""
         where = ["platform = ?"]
         params: list = [platform]
         if group:
@@ -44,6 +44,9 @@ class MessageRepo:
         if q:
             where.append("(content LIKE ? OR sender LIKE ?)")
             params += [f"%{q}%", f"%{q}%"]
+        if since_ts:
+            where.append("ts > ?")
+            params.append(int(since_ts))
         with self._connect() as conn:
             total = conn.execute(
                 f"SELECT COUNT(*) FROM messages WHERE {' AND '.join(where)}", params).fetchone()[0]
@@ -82,3 +85,12 @@ class MessageRepo:
         with self._connect() as conn:
             row = conn.execute("SELECT MAX(ts) FROM messages WHERE platform=?", (platform,)).fetchone()
             return row[0] or 0
+
+    def latest_message(self, platform: str) -> dict | None:
+        """该平台最新一条消息（无消息返回 None）——SSE 事件载荷摘要。"""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT group_name, sender, content FROM messages "
+                "WHERE platform=? ORDER BY ts DESC LIMIT 1", (platform,),
+            ).fetchone()
+        return dict(row) if row else None

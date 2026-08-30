@@ -54,3 +54,9 @@ class AlertRepo:
         with self._connect() as conn:
             row = conn.execute("SELECT MAX(id) FROM alerts WHERE platform=?", (platform,)).fetchone()
             return row[0] or 0
+
+    def get_alert(self, alert_id: int) -> dict | None:
+        """按 id 取提醒（不存在返回 None）——SSE 事件载荷摘要。"""
+        with self._connect() as conn:
+            row = conn.execute("SELECT * FROM alerts WHERE id=?", (int(alert_id),)).fetchone()
+        return dict(row) if row else None
