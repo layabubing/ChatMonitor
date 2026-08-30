@@ -431,31 +431,25 @@ class PlatformBindingPage extends StatefulWidget {
 }
 
 class _PlatformBindingPageState extends State<PlatformBindingPage> {
-  bool get _isQq => widget.platform == 'qq';
+  PlatformMeta? get _meta => metaOf(widget.platform);
 
   final _controllers = <String, TextEditingController>{};
+  final _secretKeys = <String>{};
+  final _secretSet = <String, bool>{};
   bool _enabled = true;
   bool _loading = true;
   bool _busy = false;
   String? _testResult;
   bool? _testOk;
 
-  List<String> get _keys => _isQq
-      ? ['QQ_APP_ID', 'QQ_APP_SECRET', 'QQ_ENV', 'QQ_GROUP_OPENIDS']
-      : ['DINGTALK_APP_KEY', 'DINGTALK_APP_SECRET', 'DINGTALK_CHAT_IDS'];
+  /// 表单键由平台元数据驱动（排除 *_ENABLED，启用走开关）
+  List<String> get _keys =>
+      _meta?.formKeys ?? [for (final k in _controllers.keys) k];
 
-  String _labelOf(String k) => switch (k) {
-        'QQ_APP_ID' => 'App ID',
-        'QQ_APP_SECRET' => 'App Secret',
-        'QQ_ENV' => '环境（sandbox / prod）',
-        'QQ_GROUP_OPENIDS' => '群 OpenID（多个用逗号分隔）',
-        'DINGTALK_APP_KEY' => 'App Key',
-        'DINGTALK_APP_SECRET' => 'App Secret',
-        'DINGTALK_CHAT_IDS' => '群 Chat ID（多个用逗号分隔）',
-        _ => k,
-      };
+  String _labelOf(String k) => bindingKeyLabel(widget.platform, k);
 
-  bool _isSecret(String k) => k.endsWith('SECRET');
+  bool _isSecret(String k) =>
+      _secretKeys.contains(k) || (_meta?.isSecret(k) ?? k.endsWith('SECRET'));
 
   @override
   void initState() {
@@ -468,11 +462,24 @@ class _PlatformBindingPageState extends State<PlatformBindingPage> {
       final d =
           await AppState.instance.api.getPlatformBinding(widget.platform);
       final cfg = Map<String, dynamic>.from(d['config'] as Map? ?? {});
+      // 元数据未知的平台：从返回的配置键推导表单（排除 enabled 与 *_SET 标记）
+      final ks = _keys.isNotEmpty
+          ? _keys
+          : cfg.keys
+              .where((k) =>
+                  k != 'enabled' && !k.endsWith('_SET') && !k.endsWith('_ENABLED'))
+              .toList();
       setState(() {
         _enabled = cfg['enabled'] == true;
-        for (final k in _keys) {
+        for (final k in ks) {
+          // 元数据 secret_keys 或后端 *_SET 标记任一为真即按密钥处理
+          final secret = _isSecret(k) || cfg.containsKey('${k}_SET');
+          if (secret) {
+            _secretKeys.add(k);
+            _secretSet[k] = cfg['${k}_SET'] == true;
+          }
           _controllers[k] = TextEditingController(
-              text: _isSecret(k) ? '' : '${cfg[k] ?? ''}');
+              text: secret ? '' : '${cfg[k] ?? ''}');
         }
         _loading = false;
       });
@@ -551,7 +558,11 @@ class _PlatformBindingPageState extends State<PlatformBindingPage> {
                     obscureText: _isSecret(k),
                     decoration: InputDecoration(
                       labelText: _labelOf(k),
-                      hintText: _isSecret(k) ? '留空表示不修改已保存的密钥' : null,
+                      hintText: _isSecret(k)
+                          ? (_secretSet[k] == true
+                              ? '已保存，留空表示不修改'
+                              : '留空表示不修改已保存的密钥')
+                          : null,
                       border: const OutlineInputBorder(),
                     ),
                   ),

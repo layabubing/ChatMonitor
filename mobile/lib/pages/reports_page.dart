@@ -82,34 +82,30 @@ class _ReportsPageState extends State<ReportsPage> {
         return Column(children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-            child: Row(children: [
-              ChoiceChip(
-                label: const Text('全部平台'),
-                selected: _platform.isEmpty,
-                onSelected: (_) {
-                  setState(() => _platform = '');
-                  _reload();
-                },
-              ),
-              const SizedBox(width: 8),
-              ChoiceChip(
-                label: const Text('QQ'),
-                selected: _platform == 'qq',
-                onSelected: (_) {
-                  setState(() => _platform = 'qq');
-                  _reload();
-                },
-              ),
-              const SizedBox(width: 8),
-              ChoiceChip(
-                label: const Text('钉钉'),
-                selected: _platform == 'dingtalk',
-                onSelected: (_) {
-                  setState(() => _platform = 'dingtalk');
-                  _reload();
-                },
-              ),
-            ]),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(children: [
+                ChoiceChip(
+                  label: const Text('全部平台'),
+                  selected: _platform.isEmpty,
+                  onSelected: (_) {
+                    setState(() => _platform = '');
+                    _reload();
+                  },
+                ),
+                for (final m in activeMetas) ...[
+                  const SizedBox(width: 8),
+                  ChoiceChip(
+                    label: Text(m.displayName),
+                    selected: _platform == m.name,
+                    onSelected: (_) {
+                      setState(() => _platform = m.name);
+                      _reload();
+                    },
+                  ),
+                ],
+              ]),
+            ),
           ),
           Expanded(child: _buildList()),
         ]);

@@ -8,8 +8,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api/client.dart';
 import '../api/models.dart';
+import '../api/platforms.dart';
 import '../api/sse.dart';
 
+export '../api/platforms.dart';
 export '../api/sse.dart' show SseEvent;
 
 class SseState {
@@ -55,6 +57,7 @@ class AppState extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     baseUrl = prefs.getString('base_url') ?? '';
     token = prefs.getString('token');
+    loadMetasJson(prefs.getString('platform_meta')); // 恢复上次服务端下发的平台元数据
     api = ApiClient(baseUrl: baseUrl, token: token)
       ..onUnauthorized = () => logout(kickToLogin: true);
     if (loggedIn) {
@@ -65,12 +68,25 @@ class AppState extends ChangeNotifier {
         nickname = me['nickname'] ?? '';
         startRealtime();
         unawaited(refreshOverview());
+        unawaited(refreshPlatformMetas());
       } on ApiException catch (e) {
         if (e.isAuth) await logout();
       } catch (_) {}
     }
     ready = true;
     notifyListeners();
+  }
+
+  /// 拉取服务端平台元数据并持久化（供 UI 动态渲染与后台 isolate 使用）。
+  Future<void> refreshPlatformMetas() async {
+    if (!loggedIn) return;
+    try {
+      final items = await api.platformsMeta();
+      applyServerMetas(items);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('platform_meta', dumpMetasJson());
+      notifyListeners();
+    } catch (_) {}
   }
 
   Future<void> _persist() async {
@@ -96,6 +112,7 @@ class AppState extends ChangeNotifier {
     await _persist();
     startRealtime();
     unawaited(refreshOverview());
+    unawaited(refreshPlatformMetas());
     notifyListeners();
   }
 

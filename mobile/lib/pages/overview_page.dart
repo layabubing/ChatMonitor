@@ -40,10 +40,10 @@ class _OverviewPageState extends State<OverviewPage> {
           child: ListView(
             padding: const EdgeInsets.all(12),
             children: [
-              for (final p in ['qq', 'dingtalk'])
+              for (final m in activeMetas)
                 _PlatformCard(
-                  platform: p,
-                  ov: data[p],
+                  platform: m.name,
+                  ov: data[m.name],
                   cmdBusy: _cmdBusy,
                   onCommand: _command,
                 ),

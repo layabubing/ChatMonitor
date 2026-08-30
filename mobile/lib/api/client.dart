@@ -209,6 +209,12 @@ class ApiClient {
   Future<void> platformCommand(String name, String cmd) =>
       _req('POST', '/api/platforms/$name/command', data: {'cmd': cmd});
 
+  /// 平台元数据（显示名/绑定键/密钥键），供移动端动态渲染。
+  Future<List<dynamic>> platformsMeta() async {
+    final d = await _req('GET', '/api/platforms/meta');
+    return (d['items'] as List? ?? []);
+  }
+
   // ── 设置 ──
   Future<Map<String, dynamic>> settings() async =>
       Map<String, dynamic>.from(await _req('GET', '/api/settings'));

@@ -4,15 +4,16 @@ library;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../api/platforms.dart';
+
 String fmtTs(int ms, {String pattern = 'MM-dd HH:mm'}) {
   if (ms <= 0) return '';
   return DateFormat(pattern).format(DateTime.fromMillisecondsSinceEpoch(ms));
 }
 
-String platformLabel(String p) => p == 'qq' ? 'QQ' : '钉钉';
+String platformLabel(String p) => platformDisplayName(p);
 
-Color platformColor(String p) =>
-    p == 'qq' ? const Color(0xFF12B7F5) : const Color(0xFF1E88E5);
+Color platformColor(String p) => Color(platformColorValue(p));
 
 Color priorityColor(String p) => switch (p) {
       'high' => const Color(0xFFE53935),

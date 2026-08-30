@@ -14,7 +14,7 @@ class MessagesPage extends StatefulWidget {
 }
 
 class _MessagesPageState extends State<MessagesPage> {
-  String _platform = 'qq';
+  String _platform = activeMetas.isNotEmpty ? activeMetas.first.name : 'qq';
   String _group = '';
   final _search = TextEditingController();
   List<String> _groups = [];
@@ -144,9 +144,9 @@ class _MessagesPageState extends State<MessagesPage> {
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
             child: Row(children: [
               SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'qq', label: Text('QQ')),
-                  ButtonSegment(value: 'dingtalk', label: Text('钉钉')),
+                segments: [
+                  for (final m in activeMetas)
+                    ButtonSegment(value: m.name, label: Text(m.displayName)),
                 ],
                 selected: {_platform},
                 onSelectionChanged: (s) {

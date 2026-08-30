@@ -10,6 +10,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
+import '../api/platforms.dart';
+
 // ═══════════════ 本地通知（App 主 isolate 与保活 isolate 共用） ═══════════════
 class NotifyHelper {
   static final FlutterLocalNotificationsPlugin plugin =
@@ -88,6 +90,7 @@ class MonitorTaskHandler extends TaskHandler {
     final prefs = await SharedPreferences.getInstance();
     _baseUrl = prefs.getString('base_url') ?? '';
     _token = prefs.getString('token') ?? '';
+    loadMetasJson(prefs.getString('platform_meta')); // 平台显示名（服务端下发缓存）
     _dio = Dio(BaseOptions(
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: Duration.zero,
@@ -159,7 +162,7 @@ class MonitorTaskHandler extends TaskHandler {
       if (d is! Map) return;
       final preview = '${d['preview'] ?? ''}';
       final group = '${d['group_name'] ?? ''}';
-      final platform = '${d['platform'] ?? ''}' == 'qq' ? 'QQ' : '钉钉';
+      final platform = platformDisplayName('${d['platform'] ?? ''}');
       await NotifyHelper.showAlert(
         id: DateTime.now().millisecondsSinceEpoch ~/ 1000 % 100000,
         priority: '${d['priority'] ?? ''}',
@@ -195,7 +198,7 @@ class MonitorTaskHandler extends TaskHandler {
           id: id % 100000,
           priority: '${m['priority'] ?? ''}',
           title:
-              '[${platform == 'qq' ? 'QQ' : '钉钉'}] ${m['group_name'] ?? ''} 有新提醒',
+              '[${platformDisplayName(platform)}] ${m['group_name'] ?? ''} 有新提醒',
           body: ('${m['content'] ?? ''}').isEmpty
               ? '点击查看详情'
               : '${m['content']}'.substring(
@@ -244,6 +247,7 @@ void callbackDispatcher() {
       final prefs = await SharedPreferences.getInstance();
       final baseUrl = prefs.getString('base_url') ?? '';
       final token = prefs.getString('token') ?? '';
+      loadMetasJson(prefs.getString('platform_meta')); // 平台显示名
       if (baseUrl.isEmpty || token.isEmpty) return true;
       final dio = Dio(BaseOptions(
         connectTimeout: const Duration(seconds: 10),
@@ -271,7 +275,7 @@ void callbackDispatcher() {
           id: id % 100000,
           priority: '${m['priority'] ?? ''}',
           title:
-              '[${platform == 'qq' ? 'QQ' : '钉钉'}] ${m['group_name'] ?? ''} 有新提醒',
+              '[${platformDisplayName(platform)}] ${m['group_name'] ?? ''} 有新提醒',
           body: content.isEmpty
               ? '点击查看详情'
               : content.substring(0, content.length.clamp(0, 50)),

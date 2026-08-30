@@ -4,6 +4,7 @@ from __future__ import annotations
 import httpx
 from fastapi import APIRouter, HTTPException, Request
 
+import config
 from config import PLATFORMS
 from core import commands
 from web import auth, deps, security
@@ -33,6 +34,21 @@ async def api_platform_command(name: str, request: Request):
 async def api_platform_pending(name: str, request: Request):
     deps.require_user(request)
     return {"pending": commands.get_pending(name)}
+
+
+# ── 平台元数据（移动端动态渲染用；只含键名与显示名，不含任何密钥值） ──
+@router.get("/api/platforms/meta")
+async def api_platforms_meta(request: Request):
+    deps.require_user(request)
+    return {"items": [
+        {
+            "name": name,
+            "display_name": meta.get("display_name", name),
+            "keys": list(meta.get("keys", [])),
+            "secret_keys": list(meta.get("secret_keys", [])),
+        }
+        for name, meta in config.PLATFORM_META.items()
+    ]}
 
 
 # ── 账号绑定（用户级，登录即可） ──

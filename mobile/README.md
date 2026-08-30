@@ -3,7 +3,8 @@
 ChatMonitor 群聊监控系统的手机端，通过服务器 Web 后端 API + SSE 工作，功能与网页版一致：
 
 - 登录 / 注册（支持邀请码）
-- 总览：QQ / 钉钉两平台统计、运行状态、生成报告 / 暂停 / 恢复 / 重载关键词
+- 总览：QQ / 钉钉 / 飞书 / 企业微信各平台统计、运行状态、生成报告 / 暂停 / 恢复 / 重载关键词
+  （平台列表由后端 `/api/platforms/meta` 动态下发，后续新增平台 App 免改版）
 - 消息：平台切换、群筛选、搜索、分页加载、SSE 增量刷新
 - 提醒：优先级色标、未读角标、标记已读 / 全部已读
 - 报告：日报列表、HTML 在线预览、docx 下载
@@ -44,6 +45,8 @@ flutter build apk --release     # 产物在 build/app/outputs/flutter-apk/app-re
 - `web/routers/stream.py`：SSE 的 `message`/`alert` 事件附带群名/发送者/优先级/内容摘要
 - `web/routers/messages.py` + `core/storage/messages.py`：`/api/messages` 新增 `since_ts`
   增量查询参数
+- `web/routers/platforms.py`：新增 `GET /api/platforms/meta`（平台显示名/绑定键/密钥键，
+  由 `PLATFORM_META` 注册表驱动，App 据此动态渲染四平台）
 
 以上均为向后兼容的增量改动，网页端行为不受影响。
 
