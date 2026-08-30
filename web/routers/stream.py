@@ -29,11 +29,27 @@ async def sse_poller() -> None:
                         t = st.max_msg_ts(p)
                         if t > cur["msg"].get(p, 0):
                             cur["msg"][p] = t
-                            await sse.broadcast("message", {"platform": p}, username=uname)
+                            payload: dict = {"platform": p}
+                            latest = st.latest_message(p)
+                            if latest:  # 摘要载荷：移动端可直接展示/通知，网页端忽略多余字段
+                                payload.update({
+                                    "group_name": latest.get("group_name", ""),
+                                    "sender": latest.get("sender", ""),
+                                    "preview": (latest.get("content") or "")[:50],
+                                })
+                            await sse.broadcast("message", payload, username=uname)
                         a = st.max_alert_id(p)
                         if a > cur["alert"].get(p, 0):
                             cur["alert"][p] = a
-                            await sse.broadcast("alert", {"platform": p, "id": a}, username=uname)
+                            payload = {"platform": p, "id": a}
+                            alert = st.get_alert(a)
+                            if alert:
+                                payload.update({
+                                    "priority": alert.get("priority", ""),
+                                    "group_name": alert.get("group_name", ""),
+                                    "preview": (alert.get("content") or "")[:50],
+                                })
+                            await sse.broadcast("alert", payload, username=uname)
                         r = st.max_report_id(p)
                         if r > cur["report"].get(p, 0):
                             cur["report"][p] = r

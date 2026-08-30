@@ -19,9 +19,10 @@ async def api_groups(request: Request, platform: str = Query(...)):
 
 @router.get("/api/messages")
 async def api_messages(request: Request, platform: str = Query(...), group: str = "",
-                       q: str = "", page: int = 1, page_size: int = 50):
+                       q: str = "", page: int = 1, page_size: int = 50, since_ts: int = 0):
     user = deps.require_user(request)
     if platform not in PLATFORMS:
         raise HTTPException(400, "未知平台")
     return deps.storage(platform, user["username"]).query_messages(
-        platform, group=group, q=q, page=page, page_size=deps.page_size(page_size))
+        platform, group=group, q=q, page=page, page_size=deps.page_size(page_size),
+        since_ts=since_ts)
