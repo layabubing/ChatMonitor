@@ -98,6 +98,10 @@ sudo certbot --nginx -d your-domain.com
 > （浏览器打开应返回 403 JSON「企微回调验证失败」——403 表示路由可达、缺合法签名，属正常）；
 > 然后在企微后台「接收消息」页配置该 URL 完成验证。
 
+> 📄 **自定义错误页面**：`deploy/nginx.conf` 已配置 `error_page 404` 和 `error_page 500 502 503 504`，
+> 页面文件位于 `web/static/errors/`（`404.html`、`50x.html`），随项目部署到 `/opt/chat-monitor/` 即可，无需额外操作。
+> 页面内已附简要排查方案，样式与主站一致。
+
 ### 方式二：无域名（先用 IP + HTTP）
 
 ```bash

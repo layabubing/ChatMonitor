@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>404 · 页面不存在</title>
+<style>
+  /* 与 web/static/style.css 设计令牌保持一致（内联以保证离线渲染） */
+  :root {
+    --bg: #0d1017;
+    --surface: #151a23;
+    --surface-2: #1b2130;
+    --border: #262e40;
+    --text: #e8ebf2;
+    --text-dim: #98a2b8;
+    --text-faint: #667085;
+    --accent: #4a9eff;
+    --accent-strong: #2f86f6;
+    --warn: #fbbf24;
+    --radius: 12px;
+    --shadow: 0 6px 24px rgba(0, 0, 0, .35);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--text);
+    font-size: 14px; line-height: 1.55; min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    width: 100%; max-width: 520px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 40px 36px; text-align: center;
+  }
+  .code {
+    font-size: 72px; font-weight: 800; line-height: 1;
+    color: var(--warn); letter-spacing: 2px;
+  }
+  h1 { font-size: 20px; font-weight: 600; margin: 12px 0 6px; }
+  .desc { color: var(--text-dim); margin-bottom: 24px; }
+  .solutions {
+    text-align: left; background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px 20px; margin-bottom: 24px;
+  }
+  .solutions h2 {
+    font-size: 13px; font-weight: 600; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;
+  }
+  .solutions ul { list-style: none; }
+  .solutions li {
+    position: relative; padding-left: 18px; margin: 8px 0;
+    color: var(--text-dim);
+  }
+  .solutions li::before {
+    content: ""; position: absolute; left: 0; top: 8px;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+  }
+  .actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-block; padding: 9px 22px; border-radius: 8px;
+    font-size: 14px; cursor: pointer; border: 1px solid transparent;
+    text-decoration: none; transition: background .16s, border-color .16s;
+    font-family: inherit;
+  }
+  .btn-primary { background: var(--accent-strong); color: #fff; }
+  .btn-primary:hover { background: var(--accent); }
+  .btn-ghost {
+    background: transparent; color: var(--text-dim);
+    border-color: var(--border);
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--text-faint); }
+  @media (max-width: 480px) {
+    .card { padding: 28px 20px; }
+    .code { font-size: 56px; }
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="code">404</div>
+    <h1>页面不存在</h1>
+    <p class="desc">您访问的页面不存在或已被移除。</p>
+
+    <div class="solutions">
+      <h2>解决方案</h2>
+      <ul>
+        <li>检查地址栏 URL 是否拼写正确</li>
+        <li>页面可能已移动或删除，请从首页重新进入</li>
+        <li>若通过书签访问，书签可能已失效，请更新书签</li>
+        <li>问题持续出现时，请联系系统管理员</li>
+      </ul>
+    </div>
+
+    <div class="actions">
+      <a class="btn btn-primary" href="/">返回首页</a>
+      <button class="btn btn-ghost" onclick="history.back()">返回上一页</button>
+    </div>
+  </div>
+</body>
+</html>
