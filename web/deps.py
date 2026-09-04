@@ -69,10 +69,10 @@ def require_user(request: Request) -> dict:
 
 def require_admin(request: Request) -> dict:
     """需要管理员；未登录 401，普通用户 403。"""
-    try:
-        return auth.require_admin(request)
-    except PermissionError as e:
-        raise HTTPException(403, str(e))
+    user = require_user(request)
+    if user["role"] != "admin":
+        raise HTTPException(403, "需要管理员权限")
+    return user
 
 
 # ── 分页/脱敏 ──

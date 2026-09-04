@@ -17,6 +17,7 @@ export function init() {
     document.querySelectorAll('#settingsNav button').forEach((b) => b.classList.toggle('active', b === btn));
     document.querySelectorAll('.subpage').forEach((p) => p.classList.toggle('active', p.id === 'sub-' + btn.dataset.sub));
     localStorage.setItem('cm_settings_sub', btn.dataset.sub);
+    if (btn.dataset.sub === 'update') loadUpdate();   // admin 子页：进入时拉取缓存状态（不走网络）
   });
   const savedSub = localStorage.getItem('cm_settings_sub');
   if (savedSub) {
@@ -27,6 +28,10 @@ export function init() {
   // 账号
   $('saveNick').addEventListener('click', saveNickname);
   $('savePwd').addEventListener('click', savePassword);
+
+  // 系统更新（仅 admin 可见可用，按钮本身始终存在）
+  $('updCheck').addEventListener('click', checkUpdate);
+  $('updApply').addEventListener('click', applyUpdate);
 
   // 绑定
   ['qq', 'dingtalk', 'feishu', 'workwechat'].forEach((p) => {
@@ -61,6 +66,7 @@ export async function load() {
     loaded = true;      // 成功后才置位，失败时下次进入可重试
     $('setUser').textContent = s.username;
     $('setRole').textContent = s.role === 'admin' ? '管理员' : '普通用户';
+    if (s.role === 'admin') $('settingsNavUpdate').hidden = false;   // 系统更新仅 admin 可见
     $('meNick').placeholder = s.nickname || '给自己起个昵称';
     renderAiInfo(s);
     kwData = s.keywords || {};
@@ -264,4 +270,72 @@ function renderAiInfo(s) {
     <div class="settings-row"><span class="label">API Key</span><span>${s.ai.key_set ? '已配置 ' + esc(s.ai.key_masked) : '<b style="color:var(--danger)">未配置</b>'}</span></div>
     <div class="settings-row"><span class="label">Server酱推送</span><span>${s.serverchan_set ? '已开启' : '未开启'}</span></div>
     <div class="settings-row"><span class="label">平台</span><span>${s.platforms.map((p) => `${PLATFORM_NAMES[p.name]} ${p.enabled ? '启用' : '停用'} · ${p.running ? '运行中' : '已停止'}`).join('　')}</span></div>`;
+}
+
+// ── 系统更新（仅 admin；每一次 commit 即一个版本） ──
+async function loadUpdate() {
+  try {
+    renderUpdate(await api('/api/update/status'));
+  } catch (e) { $('updStatus').className = 'bind-status err'; $('updStatus').textContent = e.message; }
+}
+
+function renderUpdate(d) {
+  const cur = d.current || {};
+  $('updCurrent').textContent = cur.hash ? `${cur.hash} · ${cur.message}（${cur.time}）` : '未知（非 git 部署）';
+  $('updRepo').textContent = d.repo || '未配置';
+  $('updCheckedAt').textContent = d.checked_at ? new Date(d.checked_at * 1000).toLocaleString() : '尚未检查';
+  const state = $('updState');
+  if (d.update_available) {
+    state.innerHTML = `<b style="color:var(--danger)">发现 ${d.behind} 个新提交，可更新</b>`;
+  } else if (d.error) {
+    state.textContent = '检查失败';
+  } else {
+    state.textContent = d.checked_at ? '已是最新版本 ✓' : '尚未检查，点击「检查更新」获取远端状态';
+  }
+  $('updApply').disabled = !d.update_available || d.busy;
+  $('updCommits').innerHTML = (d.commits || []).map((c) => `
+    <div class="settings-row"><span class="label"><code>${esc(c.hash)}</code></span>
+      <span>${esc(c.message)} <span class="hint-inline">${esc(c.author)} · ${esc(c.time)}</span></span></div>`).join('');
+  const st = $('updStatus');
+  if (d.error) { st.className = 'bind-status err'; st.textContent = d.error; }
+}
+
+async function checkUpdate() {
+  const st = $('updStatus');
+  st.className = 'bind-status info';
+  st.textContent = '正在连接 GitHub 检查更新…';
+  $('updCheck').disabled = true;
+  try {
+    const d = await api('/api/update/check', { method: 'POST', body: '{}' });
+    renderUpdate(d);
+    if (!d.error) {
+      st.className = 'bind-status ' + (d.update_available ? 'info' : 'ok');
+      st.textContent = d.update_available ? `发现 ${d.behind} 个新提交，请确认后更新` : '已是最新版本 ✓';
+    }
+  } catch (e) { st.className = 'bind-status err'; st.textContent = e.message; }
+  finally { $('updCheck').disabled = false; }
+}
+
+async function applyUpdate() {
+  if (!confirm('确认更新服务端到 GitHub 最新版本？\n\n更新采用 fast-forward，只更新代码，不会影响本地数据（消息库、配置、报告等）。\n更新完成后服务将重启以生效。')) return;
+  const st = $('updStatus');
+  st.className = 'bind-status info';
+  st.textContent = '正在更新，请勿关闭页面…';
+  $('updApply').disabled = true;
+  try {
+    const d = await api('/api/update/apply', { method: 'POST', body: '{}' });
+    if (d.warning) { st.className = 'bind-status err'; st.textContent = d.warning; return; }
+    st.className = 'bind-status ok';
+    if (d.restart === 'auto') {
+      st.textContent = `✅ ${d.message}，服务正在自动重启，约 10 秒后刷新页面…`;
+      setTimeout(() => location.reload(), 10000);
+    } else {
+      st.textContent = `✅ ${d.message}。请重启服务使新版本生效。`;
+    }
+    loadUpdate();
+  } catch (e) {
+    st.className = 'bind-status err';
+    st.textContent = e.message;
+    $('updApply').disabled = false;
+  }
 }

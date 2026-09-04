@@ -155,6 +155,7 @@
           <button data-sub="bindings">🔗 平台绑定</button>
           <button data-sub="keywords">📌 关键词库</button>
           <button data-sub="about">🤖 AI 与状态</button>
+          <button data-sub="update" id="settingsNavUpdate" hidden>⬆️ 系统更新</button>
         </aside>
         <div class="settings-body">
 
@@ -256,6 +257,22 @@
             <div class="card">
               <h3>🤖 AI 模型（<span id="aiModelName">…</span>）</h3>
               <div id="aiInfo"></div>
+            </div>
+          </div>
+
+          <div class="subpage" id="sub-update">
+            <div class="card">
+              <h3>⬆️ 服务端版本更新 <span class="hint-inline">GitHub 每一次提交（commit）即一个新版本，本地数据不受影响</span></h3>
+              <div class="settings-row"><span class="label">当前版本</span><span id="updCurrent">…</span></div>
+              <div class="settings-row"><span class="label">远端仓库</span><span id="updRepo">…</span></div>
+              <div class="settings-row"><span class="label">状态</span><span id="updState">…</span></div>
+              <div class="settings-row"><span class="label">上次检查</span><span id="updCheckedAt">…</span></div>
+              <div class="actions row-flex" style="margin-top:12px">
+                <button class="btn" id="updCheck">⟳ 检查更新</button>
+                <button class="btn primary" id="updApply" disabled>确认更新到最新版</button>
+              </div>
+              <div class="bind-status" id="updStatus"></div>
+              <div id="updCommits"></div>
             </div>
           </div>
 
