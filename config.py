@@ -1,6 +1,7 @@
 """
 全局配置加载：app.env 为通用配置，{platform}.env 为平台专属配置
 """
+import re
 from pathlib import Path
 
 from dotenv import dotenv_values
@@ -157,8 +158,25 @@ def platform_report_dir(platform: str) -> Path:
 
 
 # ── 多租户：每用户独立数据空间 ──
+USERNAME_RE = re.compile(r"[A-Za-z0-9_-]{3,32}")
+
+
+def is_valid_username(username: str) -> bool:
+    """新注册用户名白名单：3-32 位，仅字母/数字/下划线/连字符。"""
+    return bool(USERNAME_RE.fullmatch(username or ""))
+
+
+def is_safe_path_username(username: str) -> bool:
+    """用户名可安全拼入路径：非 . / ..，不含路径分隔符与 NUL（兼容存量中文用户名）。"""
+    if not username or username in (".", ".."):
+        return False
+    return "/" not in username and "\\" not in username and "\x00" not in username
+
+
 def user_data_dir(username: str) -> Path:
     """某用户的数据根目录：data/users/{username}/"""
+    if not is_safe_path_username(username):
+        raise ValueError(f"非法用户名: {username!r}")
     return DATA_DIR / "users" / username
 
 

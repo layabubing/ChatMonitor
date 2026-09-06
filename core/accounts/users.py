@@ -10,7 +10,7 @@ import secrets
 import sqlite3
 import time
 
-from config import get_app_config
+from config import get_app_config, is_valid_username
 from core.accounts import db
 
 ROLE_ADMIN = "admin"
@@ -21,8 +21,8 @@ SALT_DEFAULT = "chat-monitor-salt-v1"
 def create_user(username: str, password: str, role: str = ROLE_USER) -> tuple[bool, str]:
     """创建用户；返回 (成功?, 消息)。新用户附带默认关键词库（从全局模板复制）。"""
     username = (username or "").strip()
-    if not (3 <= len(username) <= 32):
-        return False, "用户名长度需 3-32 个字符"
+    if not is_valid_username(username):
+        return False, "用户名需 3-32 位，仅含字母、数字、下划线、连字符"
     if len(password) < 6:
         return False, "密码至少 6 位"
     salt = secrets.token_hex(8)

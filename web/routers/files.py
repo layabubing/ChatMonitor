@@ -6,21 +6,33 @@ import mimetypes
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 
-from config import DATA_DIR, PLATFORMS
+from config import DATA_DIR, PLATFORMS, user_data_dir
 from web import deps
 
 router = APIRouter()
+
+
+def _resolve_user_media(uname: str, rel_path: str):
+    """把 users/{uname}/media/ 下的相对路径解析为绝对路径，越界返回 None。"""
+    prefix = f"users/{uname}/media/"
+    if not rel_path.startswith(prefix):
+        return None
+    try:
+        base = (user_data_dir(uname) / "media").resolve()
+    except ValueError:
+        return None
+    full = (DATA_DIR / rel_path).resolve()
+    if not full.is_relative_to(base):
+        return None
+    return full
 
 
 @router.get("/api/media/raw")
 async def api_media_raw(request: Request, path: str = ""):
     """按本地相对路径返回媒体文件（仅允许 users/{username}/media/ 下）。"""
     user = deps.require_user(request)
-    uname = user["username"]
-    if not path.startswith(f"users/{uname}/media/"):
-        raise HTTPException(400, "非法路径")
-    full = (DATA_DIR / path).resolve()
-    if not str(full).startswith(str(DATA_DIR.resolve())):
+    full = _resolve_user_media(user["username"], path)
+    if full is None:
         raise HTTPException(400, "非法路径")
     if not full.exists() or not full.is_file():
         raise HTTPException(404, "文件不存在")
@@ -68,9 +80,9 @@ async def api_file_raw(platform: str, fid: int, request: Request):
     if not f:
         raise HTTPException(404, "文件不存在")
     local = f["local_path"]
-    if not local.startswith(f"users/{user['username']}/media/"):
+    path = _resolve_user_media(user["username"], local)
+    if path is None:
         raise HTTPException(400, "非法文件路径")
-    path = DATA_DIR / local
     if not path.exists():
         raise HTTPException(404, "文件已丢失")
     mime = (mimetypes.guess_type(f["orig_name"])[0]
