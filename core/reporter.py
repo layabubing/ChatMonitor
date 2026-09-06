@@ -117,7 +117,8 @@ def _write_docx(path: str, config: dict, platform: str, date_str: str, summary: 
 
 # ── html ──
 def _esc(s: str) -> str:
-    return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;") \
+        .replace('"', "&quot;").replace("'", "&#x27;")
 
 
 def _write_html(path: str, config: dict, platform: str, date_str: str, summary: str,
@@ -125,7 +126,7 @@ def _write_html(path: str, config: dict, platform: str, date_str: str, summary: 
     model = config.get("AI_MODEL", "deepseek-v4-flash-0731")
     name = PLATFORM_NAMES.get(platform, platform.upper())
     alert_rows = "".join(
-        f'<tr><td class="p-{a["priority"]}">{a["priority"]}</td><td>{_esc(a["content"])}</td>'
+        f'<tr><td class="p-{_esc(a["priority"])}">{_esc(a["priority"])}</td><td>{_esc(a["content"])}</td>'
         f'<td>{_esc(a["group_name"])}/{_esc(a["sender"])}</td><td>{_esc(a["suggestion"])}</td></tr>'
         for a in alerts
     ) or '<tr><td colspan="4">今日无重要事项</td></tr>'

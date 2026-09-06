@@ -11,6 +11,15 @@ def _now_ts() -> float:
     return time.time() * 1000  # 统一毫秒
 
 
+PRIORITIES = ("high", "medium", "low")
+
+
+def normalize_priority(value) -> str:
+    """优先级白名单：非法值回退 medium（AI 输出不可信，防止注入恶意内容入库）。"""
+    v = str(value or "").strip().lower()
+    return v if v in PRIORITIES else "medium"
+
+
 @dataclass
 class ChatMessage:
     """标准化聊天消息"""
@@ -43,6 +52,9 @@ class ImportantItem:
     group_name: str = ""
     ts: float = field(default_factory=_now_ts)
     is_read: int = 0
+
+    def __post_init__(self) -> None:
+        self.priority = normalize_priority(self.priority)
 
     def to_dict(self) -> dict:
         d = asdict(self)

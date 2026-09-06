@@ -12,7 +12,7 @@ import re
 
 import httpx
 
-from core.models import ChatMessage, ImportantItem
+from core.models import ChatMessage, ImportantItem, normalize_priority
 
 TIMEOUT = 45.0
 
@@ -138,7 +138,7 @@ async def confirm_importance(config: dict, msgs: list[ChatMessage]) -> list[Impo
             platform=m.platform, msg_id=m.msg_id, content=m.content[:500],
             reason=str(item.get("reason", ""))[:300],
             suggestion=str(item.get("suggestion", ""))[:500],
-            priority=str(item.get("priority", "medium")),
+            priority=normalize_priority(item.get("priority", "medium")),
             sender=m.sender, group_name=m.group_name, ts=m.ts,
         ))
     return results

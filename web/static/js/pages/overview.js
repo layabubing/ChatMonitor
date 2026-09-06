@@ -86,7 +86,7 @@ function renderRecentAlerts(items) {
     <div class="li" data-action="goto-alerts" style="cursor:pointer">
       <div class="li-main">
         <div class="meta">
-          <span class="chip ${a.priority === 'high' ? 'red' : a.priority === 'medium' ? 'amber' : 'green'}">${a.priority}</span>
+          <span class="chip ${a.priority === 'high' ? 'red' : a.priority === 'medium' ? 'amber' : 'green'}">${esc(a.priority)}</span>
           <span>${PLATFORM_NAMES[a.platform] || esc(a.platform)}</span>
           <span>${esc(a.group_name) || '群'} · ${esc(a.sender) || '匿名'}</span>
           <span>${fmtTs(a.ts)}</span>
