@@ -18,6 +18,23 @@
 
 ### Security
 
+- **修复 H4：移动端默认明文 HTTP 导致凭证可明文传输**（高危，见 `docs/安全审计报告.md`）
+  - 问题：裸地址自动补 `http://` 且登录页提示语引导使用 HTTP，密码/JWT/平台密钥可被同网段嗅探
+  - 修复：`mobile/lib/state/app_state.dart` 登录/注册的默认协议改为 `https://`；`mobile/lib/pages/login_page.dart` 输入 `http://` 地址时显示醒目明文风险警告，提示语改为推荐 HTTPS
+  - 残余说明：`AndroidManifest.xml` 保留 `usesCleartextTraffic="true"`（已加注释说明），因为 `deploy/DEPLOY.md` 支持"无域名 IP + HTTP"内网部署，移除会使该模式在 Android 9+ 完全不可用；明文路径现仅限用户显式输入 `http://` 且已知情警告。公网发布版本建议删除该属性彻底禁止明文
+- **修复 M1：JWT 中的角色取自令牌而非数据库**（中危）
+  - 问题：管理员被降级/禁用后，旧 token 在 7 天有效期内仍持原角色
+  - 修复：`web/auth.py` `verify_token` 的 `role` 改为以数据库实时值为准，权限变更立即生效
+- **修复 M3：注册频控只计成功次数且注册默认开放**（中危）
+  - 问题：失败尝试不计数，攻击者可持续批量建号（缓慢磁盘 DoS）；`REGISTER_OPEN` 默认 `true`
+  - 修复：`web/routers/auth_routes.py` 改为每次尝试即计数（同 IP 10 分钟 5 次上限）；`config.py` 与 `configs/app.env.example` 的 `REGISTER_OPEN` 默认值改为 `false`（默认安全，内网/受控环境按需开启或配置邀请码）
+- **修复 M13：`.gitignore` 漏排除 `feishu.env`/`workwechat.env`**（中危）
+  - 修复：改为 `configs/*.env` 通配 + `!configs/*.env.example` 例外，`git check-ignore` 验证四个平台 env 均被忽略、example 模板不受影响
+
+### Changed
+
+- `test_offline.py`：注册流程测试在隔离配置目录显式写入 `REGISTER_OPEN=true`（配合默认关闭注册的新行为）
+
 - **修复 H3：AI 输出 `priority` 未校验导致的存储型 XSS**（高危，见 `docs/安全审计报告.md`）
   - 问题：`alerts.priority` 直接取 AI 输出入库（可被群内成员通过提示注入控制），总览页 `innerHTML` 拼接未转义，可定向攻击查看"总览"页的管理员
   - 修复：`core/models.py` 新增 `PRIORITIES` 白名单与 `normalize_priority()`（非法值回退 `medium`），`ImportantItem.__post_init__` 强制净化（覆盖全部写入方）；`core/analyzer.py` AI 判定结果显式过白名单；`web/static/js/pages/overview.js` priority 改用 `esc()` 转义；`core/reporter.py` 日报 HTML 的 priority（含 class 属性）改用 `_esc()`，`_esc` 增补引号转义

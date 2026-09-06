@@ -21,9 +21,8 @@ reports/
 *.alive
 
 # Secrets / local config (keep the *.example templates)
-configs/app.env
-configs/qq.env
-configs/dingtalk.env
+configs/*.env
+!configs/*.env.example
 
 # Editor / OS
 .idea/

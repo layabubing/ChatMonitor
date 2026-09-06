@@ -47,6 +47,8 @@ def main():
     _cmds_mod.COMMANDS_DIR = tmp / "commands"   # 命令通道隔离（读真实目录会锁）
     cfgmod.CONFIGS_DIR = tmp / "configs"
     cfgmod.CONFIGS_DIR.mkdir(parents=True, exist_ok=True)
+    # 注册默认关闭（M3 安全加固），注册流程测试需显式开启
+    (cfgmod.CONFIGS_DIR / "app.env").write_text("REGISTER_OPEN=true\n", encoding="utf-8")
     # 多租户：admin 用户数据目录指向临时目录（与 web _storage("qq", "admin") 一致）
     import config as cfg_tenant
     _orig_user_data_dir = cfg_tenant.user_data_dir

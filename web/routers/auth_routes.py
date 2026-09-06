@@ -42,11 +42,12 @@ async def api_login(request: Request):
 async def api_register(request: Request):
     """开放注册（可用 REGISTER_OPEN / REGISTER_INVITE_CODE 控制；按 IP 限频防批量注册）。"""
     cfg = config.get_app_config()
-    if cfg.get("REGISTER_OPEN", "true") != "true":
+    if cfg.get("REGISTER_OPEN", "false") != "true":
         return JSONResponse({"error": "当前未开放注册"}, status_code=403)
     ip = security.client_ip(request)
     if security.register_throttled(ip):
         return JSONResponse({"error": "注册过于频繁，请稍后再试"}, status_code=429)
+    security.record_register(ip)   # 尝试即计数（含失败尝试），防批量注册/缓慢磁盘 DoS
     invite = cfg.get("REGISTER_INVITE_CODE", "") or ""
     body = await request.json()
     if invite and (body.get("invite_code") or "") != invite:
@@ -55,7 +56,6 @@ async def api_register(request: Request):
     ok, msg = auth.register(body.get("username", ""), body.get("password", ""))
     if not ok:
         return JSONResponse({"error": msg}, status_code=400)
-    security.record_register(ip)
     security.log().info(f"[auth] 新用户注册: {(body.get('username') or '')[:20]} from {ip}")
     return {"ok": True, "msg": msg}
 

@@ -88,13 +88,33 @@ class _LoginPageState extends State<LoginPage> {
                   TextField(
                     controller: _server,
                     keyboardType: TextInputType.url,
+                    onChanged: (_) => setState(() {}),
                     decoration: const InputDecoration(
                       labelText: '服务器地址',
-                      hintText: 'https://your-domain 或 http://192.168.x.x:8001',
+                      hintText: 'https://your-domain:8001（推荐 HTTPS）',
                       prefixIcon: Icon(Icons.dns_outlined),
                       border: OutlineInputBorder(),
                     ),
                   ),
+                  if (_server.text.trim().startsWith('http://'))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.warning_amber_rounded,
+                              size: 18, color: Colors.orange.shade800),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              '当前为明文 HTTP 连接，密码与平台密钥可能被同网络攻击者窃取。仅建议在可信内网使用，公网请改用 HTTPS。',
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.orange.shade800),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   const SizedBox(height: 14),
                   TextField(
                     controller: _user,

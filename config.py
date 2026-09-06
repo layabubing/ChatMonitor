@@ -98,7 +98,7 @@ DEFAULTS = {
     "AI_MODEL_VISION": "qwen-vl-plus",   # 图片识别（阿里云百炼视觉模型）
     "AI_ENABLE_THINKING": "true",
     # 安全配置
-    "REGISTER_OPEN": "true",          # 是否开放注册（公网部署建议 false 或启用邀请码）
+    "REGISTER_OPEN": "false",         # 是否开放注册（默认关闭；内网/受控环境可改 true 或启用邀请码）
     "REGISTER_INVITE_CODE": "",       # 邀请码（非空则注册必须填写）
     "COOKIE_SECURE": "false",         # HTTPS 部署时设为 true
     "REPORT_HOUR": "18",

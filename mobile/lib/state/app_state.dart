@@ -101,7 +101,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> login(String server, String user, String password) async {
     baseUrl = server.trim().replaceAll(RegExp(r'/+$'), '');
-    if (!baseUrl.startsWith('http')) baseUrl = 'http://$baseUrl';
+    if (!baseUrl.startsWith('http')) baseUrl = 'https://$baseUrl';
     api.baseUrl = baseUrl;
     await api.login(user, password);
     token = api.token;
@@ -119,7 +119,7 @@ class AppState extends ChangeNotifier {
   Future<void> register(String server, String user, String password,
       {String inviteCode = ''}) async {
     baseUrl = server.trim().replaceAll(RegExp(r'/+$'), '');
-    if (!baseUrl.startsWith('http')) baseUrl = 'http://$baseUrl';
+    if (!baseUrl.startsWith('http')) baseUrl = 'https://$baseUrl';
     api.baseUrl = baseUrl;
     await api.register(user, password, inviteCode: inviteCode);
   }

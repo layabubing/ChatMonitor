@@ -72,7 +72,7 @@ def verify_token(token: str) -> dict | None:
             return None   # 改密后 → 旧 token 失效
         return {
             "username": username,
-            "role": payload.get("role", _ROLE_USER),
+            "role": user["role"],   # 角色以数据库为准：降级/禁用在 token 有效期内也立即生效
             "nickname": user["nickname"] or "",
         }
     except Exception:  # noqa: BLE001

@@ -18,6 +18,9 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">
+        <!-- usesCleartextTraffic：仅用于用户显式输入 http:// 地址的可信内网部署
+             （登录页已对该情形给出醒目警告，默认地址协议为 HTTPS）。
+             公网发布版本建议移除此属性以彻底禁止明文流量。 -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
