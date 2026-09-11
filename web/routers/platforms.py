@@ -78,7 +78,11 @@ async def api_save_platform_binding(name: str, request: Request):
     for k in keys:
         if k in body:
             updates[k] = str(body[k]).strip()
-    enabled = bool(body.get("enabled", True))
+    # 启用开关：前端提交的是平台前缀键（如 QQ_ENABLED），旧调用方可能传 'enabled'；
+    # 两者都兼容并归一化，避免「界面选停用但 enabled 列恒为 1」。
+    enabled_key = config.PLATFORM_META[name].get("enabled_key", "")
+    raw_enabled = body.get("enabled", body.get(enabled_key, True))
+    enabled = str(raw_enabled).strip().lower() in ("1", "true", "yes", "on")
     auth.save_user_binding(user["username"], name, updates, enabled=enabled)
     # worker 每 15 秒扫描绑定，自动接入/重建实例，无需重启
     return {"ok": True, "needs_restart": False}

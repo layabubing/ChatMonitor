@@ -124,12 +124,15 @@ def run_worker(platform: str) -> None:
                 _make_inst(platform, f)
                 instances.append(f)
                 print(f"[{platform}] 已新增实例: {f['username']}")
-        # 启动所有未启动的 adapter
+        # 启动所有未启动的 adapter（单个实例启动失败不影响其它实例与 worker 存活）
         for inst in instances:
             if not inst.get("started"):
-                inst["adapter"].start()
-                inst["started"] = True
-                print(f"[{platform}] 实例启动: {inst['username'] or 'global'}")
+                try:
+                    inst["adapter"].start()
+                    inst["started"] = True
+                    print(f"[{platform}] 实例启动: {inst['username'] or 'global'}")
+                except Exception as e:  # noqa: BLE001
+                    print(f"[{platform}] 实例启动失败({inst['username'] or 'global'}): {e}")
 
     _sync_instances()   # 首轮同步（含启动 adapter）
 
@@ -203,15 +206,22 @@ def run_worker(platform: str) -> None:
                 for msg in inst["adapter"].iter_messages(timeout=0.5):
                     inst["pipeline"].process_batch([msg])
             # 心跳文件（web 判断运行状态；仅写实际存在的实例对应心跳）
+            # 单点写入失败（目录缺失/权限异常等）不得中断主循环，故逐个包裹
             now = time.time()
             if now - last_alive >= 30:
                 has_global = any(not inst["username"] for inst in instances)
                 if has_global:
-                    _ALIVE_FILE(platform).write_text(str(int(now)))
+                    try:
+                        _ALIVE_FILE(platform).write_text(str(int(now)))
+                    except OSError as e:
+                        print(f"[{platform}] 心跳写入失败(global): {e}")
                 for inst in instances:
                     if inst["username"]:
                         from config import user_data_dir
-                        (user_data_dir(inst["username"]) / f"{platform}.alive").write_text(str(int(now)))
+                        try:
+                            (user_data_dir(inst["username"]) / f"{platform}.alive").write_text(str(int(now)))
+                        except OSError as e:
+                            print(f"[{platform}] 心跳写入失败({inst['username']}): {e}")
                 last_alive = now
             time.sleep(0.3)
     except KeyboardInterrupt:

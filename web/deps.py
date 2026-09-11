@@ -41,7 +41,12 @@ def is_alive(platform: str, username: str = "") -> bool:
         b = accounts.get_user_binding(username, platform)
         if not b or not b.get("enabled"):
             return False   # 未绑定/未启用 → 未运行
-        user_id = (b.get("config") or {}).get(app_id_key, "")
+        # 与 main._collect_instances 保持同一口径：用户未填写的键沿用全局值。
+        # 若只读用户绑定（无全局兜底），会出现「worker 判定复用全局实例而不建用户实例，
+        # web 却去查用户目录心跳」的不一致 → 界面永久显示「已停止」。
+        merged = dict(global_cfg)
+        merged.update(b.get("config") or {})
+        user_id = merged.get(app_id_key, "")
         # 仅当全局启用 且 凭证与全局相同 → 共享全局实例；否则用户独立实例
         if global_enabled and user_id and user_id == global_id:
             p = DATA_DIR / f"{platform}.alive"

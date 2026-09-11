@@ -16,6 +16,17 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **修复平台绑定「已配置但无法启用」：界面永久显示「已停止」** —— 状态判定与实例创建口径不一致
+  - 问题：`main.py` 的 `_collect_instances`（worker 侧）以「全局配置 + 用户绑定覆盖」取值，用户未填写的键沿用全局值，据此判定「与全局凭证相同 → 复用全局实例，不建用户实例」；而 `web/deps.py` 的 `is_alive`（web 侧）只读用户绑定、无全局兜底，判定「用户独立实例」→ 去查 `data/users/{username}/{platform}.alive`，该心跳文件永不会被创建 → 状态恒为「已停止」（**4 个平台均受影响**，逻辑由 `PLATFORM_META` 统一驱动）
+  - 触发条件：服务器 `configs/{platform}.env` 配了全局凭证且 `ENABLED=true`，而用户在绑定界面未重新填写 AppID（只填 Secret 或留空）
+  - 修复：`is_alive` 改为与 worker 完全一致的口径（`merged = dict(全局配置); merged.update(用户绑定)` 后再取 app_id），两侧判定对齐
+- **修复平台绑定的「停用」开关无效** —— 前后端字段名不匹配
+  - 问题：前端 `settings.js` 提交平台前缀键（如 `QQ_ENABLED`），后端 `web/routers/platforms.py` 读取的是 `body.get("enabled", True)`，键名不存在导致恒回退 `True`，`user_bindings.enabled` 恒为 1 —— 界面选「停用」完全不生效（**4 个平台均受影响**）
+  - 修复：后端兼容两种键名（优先 `enabled`，缺失时读 `{平台}_ENABLED`）并归一化取值（`1/true/yes/on`），保持向后兼容
+- **加固 worker 异常隔离**（`main.py`）：心跳文件写入与 `adapter.start()` 各自包裹异常处理，单点失败不再中断 worker 主循环或影响其它实例启动
+
 ## [2.0.0] - 2026-09-11
 
 ### Added
