@@ -19,6 +19,11 @@ from core.models import ChatMessage
 _TOKEN_URL = "https://bots.qq.com/app/getAppAccessToken"
 _INTENT_GROUP_AND_C2C = 1 << 25   # 群聊+单聊事件
 _MSG_TYPE_NAMES = {0: "text", 1: "text", 2: "markdown", 7: "media"}
+# 群消息事件（两者事件体一致）：
+#   GROUP_MESSAGE_CREATE     = 全量模式，需在开放平台为机器人开通「接收所有消息」
+#   GROUP_AT_MESSAGE_CREATE  = 仅「@机器人」时推送，默认权限即有
+# 只订阅前者会导致「没开全量权限 → 一条消息都收不到」，故两者都要处理。
+_GROUP_MSG_EVENTS = ("GROUP_MESSAGE_CREATE", "GROUP_AT_MESSAGE_CREATE")
 
 
 def _rfc3339_to_ms(ts_str: str) -> int:
@@ -39,6 +44,7 @@ class QQAdapter(PlatformAdapter):
         self._token_expire = 0.0
         self._group_filter: set[str] = {
             g for g in (config.get("QQ_GROUP_OPENIDS") or "").split(",") if g.strip()}
+        self._seen_events: set[str] = set()   # 已记录的未处理事件类型（诊断用，避免刷屏）
 
     # ── 鉴权 ──
     def _get_token(self) -> str:
@@ -117,11 +123,15 @@ class QQAdapter(PlatformAdapter):
                 elif op == 0:  # Dispatch
                     s = data.get("s")
                     t = data.get("t")
-                    if t == "GROUP_MESSAGE_CREATE":
+                    if t in _GROUP_MSG_EVENTS:
                         await self._handle_group_msg(data.get("d", {}))
                     elif t == "READY":
                         self.set_connected(True)   # 认证成功，真正可收消息
                         print("[qq] 已连接，开始接收群消息")
+                    elif t and t not in self._seen_events:
+                        # 诊断用：记录首次出现的未处理事件类型（排查「收不到消息」用）
+                        self._seen_events.add(t)
+                        print(f"[qq] 收到未处理的事件类型: {t}")
                 # op 1/11 心跳相关，忽略
 
             if hb_task:
@@ -140,6 +150,9 @@ class QQAdapter(PlatformAdapter):
         if self._group_filter and group_openid not in self._group_filter:
             return
         content = d.get("content", "") or ""
+        # @事件（GROUP_AT_MESSAGE_CREATE）的 content 保留 "<@!openid>" 前缀，
+        # 全量模式（GROUP_MESSAGE_CREATE）服务端已去除；统一清理让两种事件处理一致。
+        content = self._strip_at(content)
         msg_type, media_items = self._parse_media(d)
         content = self._clean_faces(content)
         # 语音消息：使用 QQ 官方内置转写 asr_refer_text（免费）
@@ -183,6 +196,15 @@ class QQAdapter(PlatformAdapter):
                         return r
             return ""
         return _dig(d)
+
+    @staticmethod
+    def _strip_at(content: str) -> str:
+        """去掉消息开头的 @机器人 标记（形如 `<@!123456>` / `<@123456>`）。
+
+        GROUP_AT_MESSAGE_CREATE 的 content 保留 @ 前缀；全量模式由服务端已去除。
+        统一清理后两种事件的文本处理路径完全一致。"""
+        import re
+        return re.sub(r"^(\s*<@!?[^>]{0,64}>\s*)+", "", content).strip()
 
     @staticmethod
     def _clean_faces(content: str) -> str:
