@@ -205,21 +205,29 @@ def run_worker(platform: str) -> None:
             for inst in instances:
                 for msg in inst["adapter"].iter_messages(timeout=0.5):
                     inst["pipeline"].process_batch([msg])
-            # 心跳文件（web 判断运行状态；仅写实际存在的实例对应心跳）
+            # 心跳文件（web 判断运行状态；内容为「时间戳:连接是否就绪」）
+            # 连接未就绪时写 0，避免「进程在跑但连不上平台」被误显示为「运行中」
             # 单点写入失败（目录缺失/权限异常等）不得中断主循环，故逐个包裹
             now = time.time()
             if now - last_alive >= 30:
-                has_global = any(not inst["username"] for inst in instances)
-                if has_global:
+                ts = int(now)
+
+                def _alive_payload(adapter) -> str:
+                    st = adapter.connection_state()
+                    return f"{ts}:{1 if (st is None or st) else 0}"
+
+                global_inst = next((i for i in instances if not i["username"]), None)
+                if global_inst:
                     try:
-                        _ALIVE_FILE(platform).write_text(str(int(now)))
+                        _ALIVE_FILE(platform).write_text(_alive_payload(global_inst["adapter"]))
                     except OSError as e:
                         print(f"[{platform}] 心跳写入失败(global): {e}")
                 for inst in instances:
                     if inst["username"]:
                         from config import user_data_dir
                         try:
-                            (user_data_dir(inst["username"]) / f"{platform}.alive").write_text(str(int(now)))
+                            (user_data_dir(inst["username"]) / f"{platform}.alive").write_text(
+                                _alive_payload(inst["adapter"]))
                         except OSError as e:
                             print(f"[{platform}] 心跳写入失败({inst['username']}): {e}")
                 last_alive = now

@@ -16,7 +16,10 @@ async def api_overview(request: Request):
     for p in PLATFORMS:
         st = deps.storage(p, user["username"])
         ov = st.overview()
-        ov["running"] = deps.is_alive(p, user["username"])
+        rt = deps.platform_runtime(p, user["username"])
+        ov["running"] = rt["ready"]     # 兼容旧字段：能正常收消息
+        ov["alive"] = rt["alive"]       # worker 进程是否在跑
+        ov["connected"] = rt["ready"]   # 连接是否就绪（区分「没跑」与「在跑但连不上」）
         ov["today_messages"] = st.count_messages_today(p)
         result[p] = ov
     return result

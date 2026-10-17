@@ -20,12 +20,15 @@ async def api_settings(request: Request):
     for p in PLATFORMS:
         b = auth.get_user_binding(user["username"], p)
         cfg = (b or {}).get("config", {}) or {}
+        rt = deps.platform_runtime(p, user["username"])
         platforms.append({
             "name": p,
             "enabled": bool((b or {}).get("enabled")),
             "groups": cfg.get(config.PLATFORM_META[p].get("groups_key", ""), ""),
             "report_time": f"{app_cfg.get('REPORT_HOUR', '18')}:{app_cfg.get('REPORT_MINUTE', '0')}",
-            "running": deps.is_alive(p, user["username"]),
+            "running": rt["ready"],      # 兼容旧字段：能正常收消息
+            "alive": rt["alive"],        # worker 进程是否在跑
+            "connected": rt["ready"],    # 连接是否就绪
         })
     return {
         "role": user["role"],

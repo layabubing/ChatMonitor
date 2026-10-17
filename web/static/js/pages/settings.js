@@ -269,7 +269,7 @@ function renderAiInfo(s) {
     <div class="settings-row"><span class="label">接口</span><span>${esc(s.ai.base_url || '未配置')}</span></div>
     <div class="settings-row"><span class="label">API Key</span><span>${s.ai.key_set ? '已配置 ' + esc(s.ai.key_masked) : '<b style="color:var(--danger)">未配置</b>'}</span></div>
     <div class="settings-row"><span class="label">Server酱推送</span><span>${s.serverchan_set ? '已开启' : '未开启'}</span></div>
-    <div class="settings-row"><span class="label">平台</span><span>${s.platforms.map((p) => `${PLATFORM_NAMES[p.name]} ${p.enabled ? '启用' : '停用'} · ${p.running ? '运行中' : '已停止'}`).join('　')}</span></div>`;
+    <div class="settings-row"><span class="label">平台</span><span>${s.platforms.map((p) => `${PLATFORM_NAMES[p.name]} ${p.enabled ? '启用' : '停用'} · ${p.running ? '运行中' : (p.alive ? '连接异常' : '已停止')}`).join('　')}</span></div>`;
 }
 
 // ── 系统更新（仅 admin；每一次 commit 即一个版本） ──

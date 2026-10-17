@@ -70,6 +70,7 @@ class QQAdapter(PlatformAdapter):
             try:
                 asyncio.run(self._ws_loop())
             except Exception as e:  # noqa: BLE001
+                self.set_connected(False)   # 连接异常 → 上报非就绪（避免界面谎报「运行中」）
                 print(f"[qq] WS 异常: {e}")
             if self._running:
                 time.sleep(5)  # 重连间隔
@@ -83,6 +84,8 @@ class QQAdapter(PlatformAdapter):
         s = None
 
         async with websockets.connect(gateway, max_size=None, ping_interval=None) as ws:
+            # WS 已建立但尚未通过 Identify/READY 认证 → 暂不算就绪
+            self.set_connected(False)
             hb_task: asyncio.Task | None = None
 
             async def _heartbeat():
@@ -117,6 +120,7 @@ class QQAdapter(PlatformAdapter):
                     if t == "GROUP_MESSAGE_CREATE":
                         await self._handle_group_msg(data.get("d", {}))
                     elif t == "READY":
+                        self.set_connected(True)   # 认证成功，真正可收消息
                         print("[qq] 已连接，开始接收群消息")
                 # op 1/11 心跳相关，忽略
 
@@ -126,6 +130,9 @@ class QQAdapter(PlatformAdapter):
                     await asyncio.gather(hb_task, return_exceptions=True)
                 except Exception:
                     pass
+
+        # 退出 async with = WS 连接已断开 → 上报非就绪
+        self.set_connected(False)
 
     # ── 消息解析 ──
     async def _handle_group_msg(self, d: dict) -> None:

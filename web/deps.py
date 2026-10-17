@@ -31,8 +31,9 @@ def storage(platform: str, username: str = "") -> Storage:
     return _storage_cache[key]
 
 
-def is_alive(platform: str, username: str = "") -> bool:
-    """通过 alive 心跳文件判断 worker 是否在运行（多租户，见原逻辑注释）。"""
+def _alive_file(platform: str, username: str = "") -> Path | None:
+    """解析心跳文件路径（多租户：全局实例 vs 用户独立实例，口径与 main._collect_instances 一致）。
+    未绑定/未启用时返回 None。"""
     global_cfg = get_platform_config(platform)
     global_enabled = global_cfg.get(f"{platform.upper()}_ENABLED", "false") == "true"
     app_id_key = config.PLATFORM_META[platform]["app_id_key"]
@@ -40,7 +41,7 @@ def is_alive(platform: str, username: str = "") -> bool:
     if username:
         b = accounts.get_user_binding(username, platform)
         if not b or not b.get("enabled"):
-            return False   # 未绑定/未启用 → 未运行
+            return None   # 未绑定/未启用 → 无实例
         # 与 main._collect_instances 保持同一口径：用户未填写的键沿用全局值。
         # 若只读用户绑定（无全局兜底），会出现「worker 判定复用全局实例而不建用户实例，
         # web 却去查用户目录心跳」的不一致 → 界面永久显示「已停止」。
@@ -49,18 +50,34 @@ def is_alive(platform: str, username: str = "") -> bool:
         user_id = merged.get(app_id_key, "")
         # 仅当全局启用 且 凭证与全局相同 → 共享全局实例；否则用户独立实例
         if global_enabled and user_id and user_id == global_id:
-            p = DATA_DIR / f"{platform}.alive"
-        else:
-            p = config.user_data_dir(username) / f"{platform}.alive"
-    else:
-        p = DATA_DIR / f"{platform}.alive"
-    if not p.exists():
-        return False
+            return DATA_DIR / f"{platform}.alive"
+        return config.user_data_dir(username) / f"{platform}.alive"
+    return DATA_DIR / f"{platform}.alive"
+
+
+def platform_runtime(platform: str, username: str = "") -> dict:
+    """平台运行状态细分（供界面区分「没在跑」与「在跑但连不上」）：
+    - alive：worker 进程存活（心跳新鲜，<120s）
+    - ready：连接已就绪、可正常收消息（如 QQ 需通过 READY 认证）
+
+    心跳内容为「时间戳:连接是否就绪」；兼容旧格式（纯时间戳 → ready 跟随 alive）。"""
+    p = _alive_file(platform, username)
+    if p is None or not p.exists():
+        return {"alive": False, "ready": False}
     try:
-        ts = int(p.read_text().strip())
-        return time.time() - ts < 120
+        raw = p.read_text().strip()
+        ts_s, _, conn = raw.partition(":")
+        ts = int(ts_s)
+        alive = time.time() - ts < 120
+        ready = alive and conn.strip() != "0"
+        return {"alive": alive, "ready": ready}
     except Exception:  # noqa: BLE001
-        return False
+        return {"alive": False, "ready": False}
+
+
+def is_alive(platform: str, username: str = "") -> bool:
+    """worker 是否在运行**且**连接就绪（语义：能否正常收消息）。"""
+    return platform_runtime(platform, username)["ready"]
 
 
 # ── 鉴权辅助 ──

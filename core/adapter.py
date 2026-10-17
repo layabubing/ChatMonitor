@@ -24,6 +24,9 @@ class PlatformAdapter(abc.ABC):
         self._running = False
         self._queue: queue.Queue[ChatMessage | None] = queue.Queue()
         self._thread: threading.Thread | None = None
+        # 连接健康状态：None=该平台未实现健康检查（按进程存活判断）；
+        # True=已就绪可收消息；False=连接断开/认证失败
+        self._conn_state: bool | None = None
 
     # ── 生命周期 ──
     @abc.abstractmethod
@@ -78,8 +81,18 @@ class PlatformAdapter(abc.ABC):
         self._queue.put(msg)
 
     # ── 状态 ──
+    def set_connected(self, ok: bool) -> None:
+        """子类在「连接就绪 / 连接断开」时调用；未调用的平台保持 None（不做连接检查）"""
+        self._conn_state = bool(ok)
+
+    def connection_state(self) -> bool | None:
+        """True=已就绪可收消息；False=断开/认证失败；None=该平台未实现连接检查"""
+        return self._conn_state
+
     def health(self) -> dict:
-        return {"platform": self.name, "running": self._running}
+        st = self._conn_state
+        connected = self._running if st is None else (self._running and st)
+        return {"platform": self.name, "running": self._running, "connected": connected}
 
     @staticmethod
     def create(platform: str, config: dict, username: str = "") -> PlatformAdapter:

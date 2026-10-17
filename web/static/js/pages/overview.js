@@ -63,7 +63,7 @@ function renderCards(entries) {
     <div class="pcard">
       <div class="pname">
         <a href="javascript:void 0" data-action="goto-messages" data-platform="${p}">${PLATFORM_NAMES[p] || p}</a>
-        <span class="chip ${ov.running ? 'green' : 'red'}">${ov.running ? '● 运行中' : '● 已停止'}</span>
+        <span class="chip ${ov.running ? 'green' : (ov.alive ? 'amber' : 'red')}">${ov.running ? '● 运行中' : (ov.alive ? '● 连接异常' : '● 已停止')}</span>
       </div>
       <div class="stats">
         <div class="stat"><b>${ov.msg_total}</b><span>累计消息</span></div>
