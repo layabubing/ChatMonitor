@@ -13,6 +13,24 @@ from collections.abc import Iterator
 from core.models import ChatMessage
 
 
+def default_ssl_context():
+    """WebSocket 客户端使用的 SSL 上下文。
+
+    优先使用 certifi 的 CA bundle（与 httpx 保持一致）。原因：部分服务器/网络链路上
+    系统 CA 缺少中间证书或混入自签名证书，会让 `websockets` 裸连时报
+    `CERTIFICATE_VERIFY_FAILED: self signed certificate in certificate chain`，
+    而同一进程里用 httpx（自带 certifi）取 token/网关却是正常的。
+    统一走 certifi 可消除这类「HTTP 能通、WS 连不上」的诡异问题。
+    """
+    import ssl
+
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:  # noqa: BLE001
+        return ssl.create_default_context()
+
+
 class PlatformAdapter(abc.ABC):
     """平台适配器统一接口"""
 

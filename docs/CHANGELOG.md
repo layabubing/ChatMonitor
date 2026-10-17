@@ -18,6 +18,11 @@
 
 ### Fixed
 
+- **修复 QQ / 飞书 WebSocket 因 SSL 证书校验失败而永远连不上平台**（线上实测报错：`CERTIFICATE_VERIFY_FAILED: self signed certificate in certificate chain`）
+  - 问题：`websockets.connect()` 未指定 SSL 上下文时默认使用**系统 CA**；部分服务器/网络链路上系统 CA 缺少中间证书或混入自签名证书 → WS 握手直接失败。而同一进程内用 `httpx`（自带 certifi）取 token 和网关却完全正常，最终表现为「凭证测试能通过、平台状态却永远不是运行中」
+  - 修复：`core/adapter.py` 新增 `default_ssl_context()`（优先加载 certifi 的 CA bundle，与 httpx 保持一致；certifi 不可用时回退系统默认）；`platforms/qq.py`、`platforms/feishu.py` 的 `websockets.connect` 显式传入该上下文
+  - 验证：TLS 实测通过（121 个 CA，成功与 `api.sgroup.qq.com` 的腾讯证书握手）；`test_offline` 44 项 + `test_platforms_ext` 32 项全绿
+
 - **修复 QQ 收不到任何消息：只处理「全量消息」事件，漏掉「@机器人」事件**
   - 问题：`GROUP_MESSAGE_CREATE` 属**全量模式**，需在 QQ 开放平台为机器人开通「接收所有消息」权限后才会推送；未开通时服务端只推 `GROUP_AT_MESSAGE_CREATE`（@ 机器人消息，默认权限即有），而适配器只订阅前者 → **所有群消息被静默丢弃**（连 @ 机器人也不响应），且无任何日志
   - 修复：`platforms/qq.py` 同时处理 `GROUP_MESSAGE_CREATE` 与 `GROUP_AT_MESSAGE_CREATE`（两者事件体一致）；新增 `_strip_at()` 统一去除 `<@!openid>` 前缀（@事件 content 含前缀、全量模式服务端已去除），保证两种事件文本处理路径一致；新增「未处理事件类型」日志（每种类型首次出现时打印一次，便于排查）

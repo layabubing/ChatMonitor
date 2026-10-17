@@ -13,7 +13,7 @@ from datetime import datetime
 
 import httpx
 
-from core.adapter import PlatformAdapter
+from core.adapter import PlatformAdapter, default_ssl_context
 from core.models import ChatMessage
 
 _TOKEN_URL = "https://bots.qq.com/app/getAppAccessToken"
@@ -89,7 +89,8 @@ class QQAdapter(PlatformAdapter):
         hb_interval = 30.0
         s = None
 
-        async with websockets.connect(gateway, max_size=None, ping_interval=None) as ws:
+        async with websockets.connect(gateway, ssl=default_ssl_context(),
+                                      max_size=None, ping_interval=None) as ws:
             # WS 已建立但尚未通过 Identify/READY 认证 → 暂不算就绪
             self.set_connected(False)
             hb_task: asyncio.Task | None = None

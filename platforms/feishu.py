@@ -14,7 +14,7 @@ from datetime import datetime
 
 import httpx
 
-from core.adapter import PlatformAdapter
+from core.adapter import PlatformAdapter, default_ssl_context
 from core.models import ChatMessage
 
 _TOKEN_URL = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal"
@@ -120,7 +120,8 @@ class FeishuAdapter(PlatformAdapter):
         endpoint = self._get_ws_endpoint(token)
         print(f"[feishu] 连接长连接: {endpoint[:80]}…")
 
-        async with websockets.connect(endpoint, max_size=None, ping_interval=None) as ws:
+        async with websockets.connect(endpoint, ssl=default_ssl_context(),
+                                      max_size=None, ping_interval=None) as ws:
             hb_task: asyncio.Task | None = None
             # 飞书协议：连接后必须先主动注册
             await ws.send(json.dumps({"type": "ClientRegister", "client_type": 1}))
