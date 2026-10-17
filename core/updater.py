@@ -200,7 +200,10 @@ def restart_services() -> str:
 
         def _delayed_exit() -> None:
             time.sleep(1.5)   # 先让 HTTP 响应发出去
-            os._exit(0)
+            # 必须用**非 0**退出码：systemd 默认 Restart=on-failure 时，
+            # os._exit(0) 属正常退出 → 不会重启 → 服务永久停止（曾导致线上 502）。
+            # 非 0 退出码在 Restart=on-failure / always / supervisor 下都会触发重启。
+            os._exit(1)
 
         threading.Thread(target=_delayed_exit, daemon=True).start()
         return "auto"
