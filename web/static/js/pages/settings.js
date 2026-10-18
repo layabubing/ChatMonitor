@@ -154,6 +154,98 @@ async function loadBinding(platform) {
     }
     $(F.secret).value = '';
     $(F.enabled).value = enabled ? 'true' : 'false';
+    ensureProfileSection(platform);
+    loadProfiles(platform);
+  } catch (e) { toast(e.message, true); }
+}
+
+// ── 绑定档案（历史版本）：更换绑定后可一键切回，配置与状态完整恢复 ──
+function ensureProfileSection(platform) {
+  const F = FIELD_MAP[platform];
+  const statusEl = $(F.status);
+  if (!statusEl || document.getElementById(`${F.testId}_profiles`)) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'bind-history';
+  wrap.innerHTML = `
+    <div class="bind-row"><label>历史绑定（可一键切回）</label>
+      <button class="btn sm" id="${F.testId}_save_profile">＋ 保存当前为新版本</button></div>
+    <div class="profile-list" id="${F.testId}_profiles"></div>`;
+  statusEl.after(wrap);
+  $(`${F.testId}_save_profile`).addEventListener('click', () => saveProfileVersion(platform));
+}
+
+const fmtTs = (ms) => (ms ? new Date(ms).toLocaleString('zh-CN', { hour12: false }) : '');
+
+async function loadProfiles(platform) {
+  const F = FIELD_MAP[platform];
+  const box = $(`${F.testId}_profiles`);
+  if (!box) return;
+  try {
+    const d = await api(`/api/settings/platforms/${platform}/profiles`);
+    const items = d.items || [];
+    if (!items.length) {
+      box.innerHTML = '<div class="hint-inline">暂无历史版本（修改并保存绑定时会自动留底，也可点上方按钮手动存档）</div>';
+      return;
+    }
+    box.innerHTML = items.map((p) => {
+      const c = p.config || {};
+      const ident = c[F.id_key] ? ` · ${F.id_key}=${esc(c[F.id_key])}` : '';
+      return `<div class="profile-item">
+        <div class="profile-main">
+          <b>${esc(p.name)}</b>
+          <span class="hint-inline">${esc(fmtTs(p.last_used_at || p.created_at))}${ident} · ${p.enabled ? '启用' : '停用'}</span>
+        </div>
+        <div class="actions row-flex">
+          <button class="btn sm primary" data-p-activate="${p.id}">切换此版本</button>
+          <button class="btn sm" data-p-del="${p.id}">删除</button>
+        </div>
+      </div>`;
+    }).join('');
+    box.querySelectorAll('[data-p-activate]').forEach((btn) => {
+      btn.addEventListener('click', () => activateProfile(platform, Number(btn.dataset.pActivate)));
+    });
+    box.querySelectorAll('[data-p-del]').forEach((btn) => {
+      btn.addEventListener('click', () => deleteProfile(platform, Number(btn.dataset.pDel)));
+    });
+  } catch (e) {
+    box.innerHTML = `<div class="hint-inline">历史版本加载失败：${esc(e.message)}</div>`;
+  }
+}
+
+async function saveProfileVersion(platform) {
+  const def = `版本 ${new Date().toLocaleString('zh-CN', { hour12: false })}`;
+  const name = prompt('给这个版本起个名字（如：主机器人 / 备用账号）', def);
+  if (name === null) return;
+  try {
+    await api(`/api/settings/platforms/${platform}/profiles`, {
+      method: 'POST', body: JSON.stringify({ name }),
+    });
+    toast('已保存为历史版本');
+    loadProfiles(platform);
+  } catch (e) { toast(e.message, true); }
+}
+
+async function activateProfile(platform, id) {
+  if (!confirm('切换到这个历史版本？\n\n当前正在使用的配置会先自动留底，不会丢失。')) return;
+  const el = $(FIELD_MAP[platform].status);
+  try {
+    await api(`/api/settings/platforms/${platform}/profiles/${id}/activate`, {
+      method: 'POST', body: '{}',
+    });
+    el.className = 'bind-status ok';
+    el.textContent = '✅ 已切换，worker 将在约 15 秒内自动应用（无需重启）';
+    await loadBinding(platform);
+  } catch (e) {
+    el.className = 'bind-status err';
+    el.textContent = e.message;
+  }
+}
+
+async function deleteProfile(platform, id) {
+  if (!confirm('删除这个历史版本？删除后不可恢复（不影响当前生效的绑定）。')) return;
+  try {
+    await api(`/api/settings/platforms/${platform}/profiles/${id}`, { method: 'DELETE' });
+    loadProfiles(platform);
   } catch (e) { toast(e.message, true); }
 }
 

@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 import config
 from config import PLATFORMS
-from core import commands
+from core import accounts, commands
 from web import auth, deps, security
 from web.envutil import allowed_keys
 
@@ -74,7 +74,8 @@ async def api_save_platform_binding(name: str, request: Request):
     body = await request.json()
     keys = allowed_keys(name)
     b = auth.get_user_binding(user["username"], name)
-    updates = dict((b or {}).get("config", {}) or {})
+    old_cfg = dict((b or {}).get("config", {}) or {})
+    updates = dict(old_cfg)
     for k in keys:
         if k in body:
             updates[k] = str(body[k]).strip()
@@ -83,6 +84,12 @@ async def api_save_platform_binding(name: str, request: Request):
     enabled_key = config.PLATFORM_META[name].get("enabled_key", "")
     raw_enabled = body.get("enabled", body.get(enabled_key, True))
     enabled = str(raw_enabled).strip().lower() in ("1", "true", "yes", "on")
+    # 配置有实质变化 → 先把旧版本留底为档案，便于随时一键切回（历史不丢失）
+    if b and old_cfg and old_cfg != updates:
+        try:
+            accounts.archive_current(user["username"], name)
+        except Exception as e:  # noqa: BLE001  归档失败不阻断保存
+            security.log().warning(f"[bindings] 自动归档失败 {name}: {e}")
     auth.save_user_binding(user["username"], name, updates, enabled=enabled)
     # worker 每 15 秒扫描绑定，自动接入/重建实例，无需重启
     return {"ok": True, "needs_restart": False}
@@ -116,3 +123,70 @@ async def api_test_platform_binding(name: str, request: Request):
         return {"ok": ok, "detail": detail}
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "detail": f"网络错误: {e}"}
+
+
+# ── 绑定档案（历史版本）：更换绑定后可一键切回，配置与状态完整恢复 ──
+@router.get("/api/settings/platforms/{name}/profiles")
+async def api_list_binding_profiles(name: str, request: Request):
+    """列出当前用户该平台的历史绑定档案（敏感字段脱敏）。"""
+    user = deps.require_user(request)
+    if name not in PLATFORMS:
+        raise HTTPException(400, "未知平台")
+    items = []
+    for p in accounts.list_profiles(user["username"], name):
+        items.append({
+            "id": p["id"],
+            "name": p["name"],
+            "enabled": p["enabled"],
+            "created_at": p["created_at"],
+            "last_used_at": p["last_used_at"],
+            "config": deps.mask_platform_config(name, p["config"]),
+        })
+    return {"items": items}
+
+
+@router.post("/api/settings/platforms/{name}/profiles")
+async def api_save_binding_profile(name: str, request: Request):
+    """把【当前生效绑定】另存为一条命名档案，便于以后一键切回。"""
+    user = deps.require_user(request)
+    if name not in PLATFORMS:
+        raise HTTPException(400, "未知平台")
+    body = await request.json()
+    b = auth.get_user_binding(user["username"], name)
+    if not b or not (b.get("config") or {}):
+        raise HTTPException(400, "当前没有可保存的绑定配置")
+    pid = accounts.save_profile(
+        user["username"], name,
+        str(body.get("name", "")).strip(),
+        b["config"], bool(b.get("enabled")),
+    )
+    security.log().info(f"[{user['username']}] 保存绑定档案 {name}#{pid}")
+    return {"ok": True, "id": pid}
+
+
+@router.post("/api/settings/platforms/{name}/profiles/{profile_id}/activate")
+async def api_activate_binding_profile(name: str, profile_id: int, request: Request):
+    """切换到指定档案：先把当前配置留底，再完整恢复档案的 config + enabled。
+
+    worker 每 15 秒重扫绑定，切换后会自动重建实例，无需重启服务。"""
+    user = deps.require_user(request)
+    if name not in PLATFORMS:
+        raise HTTPException(400, "未知平台")
+    prof = accounts.activate_profile(user["username"], name, profile_id)
+    if not prof:
+        raise HTTPException(404, "档案不存在")
+    security.log().info(f"[{user['username']}] 切换绑定档案 {name}#{profile_id}")
+    return {"ok": True, "id": prof["id"], "name": prof["name"],
+            "enabled": prof["enabled"], "needs_restart": False}
+
+
+@router.delete("/api/settings/platforms/{name}/profiles/{profile_id}")
+async def api_delete_binding_profile(name: str, profile_id: int, request: Request):
+    """删除指定档案（仅本人本平台）。"""
+    user = deps.require_user(request)
+    if name not in PLATFORMS:
+        raise HTTPException(400, "未知平台")
+    if not accounts.delete_profile(user["username"], name, profile_id):
+        raise HTTPException(404, "档案不存在")
+    security.log().info(f"[{user['username']}] 删除绑定档案 {name}#{profile_id}")
+    return {"ok": True}

@@ -36,6 +36,19 @@ CREATE TABLE IF NOT EXISTS user_bindings (
     updated_at INTEGER,
     UNIQUE(username, platform)
 );
+CREATE TABLE IF NOT EXISTS binding_profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL,
+    platform TEXT NOT NULL,
+    name TEXT NOT NULL,
+    config TEXT NOT NULL DEFAULT '{}',
+    enabled INTEGER DEFAULT 1,
+    created_at INTEGER,
+    last_used_at INTEGER,
+    UNIQUE(username, platform, name)
+);
+CREATE INDEX IF NOT EXISTS idx_binding_profiles
+    ON binding_profiles(username, platform);
 CREATE TABLE IF NOT EXISTS user_keywords (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
