@@ -29,10 +29,10 @@
 
 ### Fixed
 
-- **修复「确认更新」后服务永久停止（线上 502）** —— 更新器用了「正常退出码」，systemd 不会拉起
-  - 问题：`core/updater.py` 的 `restart_services()` 在 systemd 环境下靠「进程退出 + Restart 策略拉起」实现重启，但用的是 `os._exit(0)`（**退出码 0 = 正常退出**）；systemd 默认 `Restart=on-failure` 只在**异常**退出时才重启 → 进程退出后再无人拉起，服务永久停止（线上曾中断约 8 分钟，只能人工启动）
-  - 修复：改为 `os._exit(1)`，非 0 退出码在 `Restart=on-failure` / `always` / supervisor 下均会触发重启
-  - **部署要求**：systemd 服务单元建议配置 `Restart=always`（或至少 `on-failure`），否则更新后仍需人工启动
+- **修复「确认更新」后服务永久停止（线上 502）** —— 更新器曾用「自杀式退出」实现重启
+  - 问题：`core/updater.py` 的 `restart_services()` 依赖「进程退出 + systemd Restart 策略拉起」；但目标服务器守护缺失（`Restart=no`），无论 `os._exit(0)` 还是 `os._exit(1)` 都**没有任何机制拉起** → 服务永久停止（线上两次 502，均需人工启动）
+  - 修复：**彻底移除 `os._exit` 自杀逻辑**；改为优先「主动 `systemctl restart <unit>`」（从 `/proc/self/cgroup` 推断单元名），做不到时返回 `manual`，由界面明确提示**人工重启** —— 宁可提示手动，也绝不让服务静默停机
+  - **部署建议**：为服务配置 `Restart=always`，或在宝塔「Python 项目」中开启守护/自动重启；否则每次更新后需手动重启一次
 
 - **修复 QQ / 飞书 WebSocket 因 SSL 证书校验失败而永远连不上平台**（线上实测报错：`CERTIFICATE_VERIFY_FAILED: self signed certificate in certificate chain`）
   - 问题：`websockets.connect()` 未指定 SSL 上下文时默认使用**系统 CA**；部分服务器/网络链路上系统 CA 缺少中间证书或混入自签名证书 → WS 握手直接失败。而同一进程内用 `httpx`（自带 certifi）取 token 和网关却完全正常，最终表现为「凭证测试能通过、平台状态却永远不是运行中」

@@ -10,7 +10,6 @@
 """
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 import threading
@@ -185,26 +184,48 @@ def apply() -> dict:
         _lock.release()
 
 
+def _systemd_unit() -> str:
+    """从 /proc/self/cgroup 推断当前进程所属的 systemd 单元名（非 systemd 环境返回空串）。"""
+    try:
+        with open("/proc/self/cgroup", encoding="utf-8") as f:
+            for line in f:
+                if ".service" in line:
+                    return line.strip().rsplit("/", 1)[-1]
+    except Exception:  # noqa: BLE001
+        pass
+    return ""
+
+
 def restart_services() -> str:
-    """更新后重启：向各平台 worker 下发 restart 命令（systemd 自动拉起）；
-    web 进程自身在 systemd 下延迟退出由 Restart=always 拉起。
-    返回 'auto'（systemd 环境自动重启）或 'manual'（需人工重启）。"""
-    if os.environ.get("INVOCATION_ID"):  # 由 systemd 启动
-        from config import PLATFORMS
-        from core import commands
-        for p in PLATFORMS:
-            try:
-                commands.write_command(p, "restart")
-            except Exception:  # noqa: BLE001  单个 worker 失败不影响其余
-                pass
+    """更新后重启服务。
 
-        def _delayed_exit() -> None:
-            time.sleep(1.5)   # 先让 HTTP 响应发出去
-            # 必须用**非 0**退出码：systemd 默认 Restart=on-failure 时，
-            # os._exit(0) 属正常退出 → 不会重启 → 服务永久停止（曾导致线上 502）。
-            # 非 0 退出码在 Restart=on-failure / always / supervisor 下都会触发重启。
-            os._exit(1)
+    优先「主动重启 systemd 单元」；做不到时**只返回 manual**，由界面提示人工重启。
 
-        threading.Thread(target=_delayed_exit, daemon=True).start()
-        return "auto"
+    ⚠️ 绝不使用 os._exit 自杀式重启：无法保证目标主机配置了 Restart=always /
+    on-failure。一旦守护策略缺失，进程退出后无人拉起，会导致服务永久停止
+    （已在真实环境两次造成线上 502）。
+    """
+    from config import PLATFORMS
+    from core import commands
+
+    # 1) 通知各平台 worker 重启（若有外部守护会自动拉起）
+    for p in PLATFORMS:
+        try:
+            commands.write_command(p, "restart")
+        except Exception:  # noqa: BLE001  单个 worker 失败不影响其余
+            pass
+
+    # 2) 主动重启当前 web 单元：不依赖 Restart 策略（需相应权限，失败则忽略）
+    unit = _systemd_unit()
+    if unit:
+        try:
+            subprocess.Popen(
+                ["systemctl", "restart", unit],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            return "auto"
+        except Exception:  # noqa: BLE001
+            pass
+
+    # 3) 兜底：不自杀，交由调用方提示人工重启（安全优先）
     return "manual"
