@@ -22,7 +22,7 @@ def _headers(config: dict) -> dict:
 
 
 def _endpoint(config: dict) -> str:
-    base = config.get("AI_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1").rstrip("/")
+    base = config.get("AI_BASE_URL", "https://maas.qianwenaiapi.com/compatible-mode/v1").rstrip("/")
     return f"{base}/chat/completions"
 
 
@@ -38,13 +38,14 @@ def _content_blocks(text: str, image_urls: list[str] | None = None) -> list:
 
 async def chat_completion(config: dict, messages: list[dict], temperature: float = 0.3,
                           max_tokens: int = 2000) -> str:
-    """调用大模型（OpenAI 兼容，默认 deepseek-v4-flash-0731 思考模式），返回正文；失败返回空串"""
+    """调用大模型（OpenAI 兼容，默认 deepseek-v4.1-flash-1017），返回正文；失败返回空串"""
     if not config.get("AI_API_KEY"):
         return ""
-    body = {"model": config.get("AI_MODEL", "deepseek-v4-flash-0731"),
+    body = {"model": config.get("AI_MODEL", "deepseek-v4.1-flash-1017"),
             "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
-    # 阿里云百炼思考模型：enable_thinking=True 时先输出 reasoning_content，正文在 content
-    if config.get("AI_ENABLE_THINKING", "true") == "true":
+    # enable_thinking 为阿里云百炼专有参数（思考内容在 reasoning_content，正文在 content）。
+    # 第三方兼容平台未必支持，故默认关闭，并做「400/422 时去掉该参数重试」的降级。
+    if config.get("AI_ENABLE_THINKING", "false") == "true":
         body["enable_thinking"] = True
     try:
         async with httpx.AsyncClient(timeout=TIMEOUT) as client:
@@ -53,6 +54,14 @@ async def chat_completion(config: dict, messages: list[dict], temperature: float
                 headers=_headers(config),
                 json=body,
             )
+            # 兼容性降级：平台不认 enable_thinking → 去掉后重试一次
+            if resp.status_code in (400, 422) and "enable_thinking" in body:
+                body.pop("enable_thinking", None)
+                resp = await client.post(
+                    _endpoint(config),
+                    headers=_headers(config),
+                    json=body,
+                )
             if resp.status_code != 200:
                 print(f"[AI] API {resp.status_code}: {resp.text[:200]}")
                 return ""
@@ -159,7 +168,14 @@ async def analyze_image(config: dict, image_path: str, msg_text: str = "") -> di
         b64 = base64.b64encode(p.read_bytes()).decode()
     except Exception:
         return None
-    data_url = f"data:image/jpeg;base64,{b64}"
+    # MIME 按真实扩展名推断：写死 image/jpeg 会让部分平台拒绝 PNG/WEBP 等格式
+    _mime = {
+        ".png": "image/png",
+        ".webp": "image/webp",
+        ".gif": "image/gif",
+        ".bmp": "image/bmp",
+    }.get(p.suffix.lower(), "image/jpeg")
+    data_url = f"data:{_mime};base64,{b64}"
     prompt = (
         "识别这张群聊中的图片。判断它是否属于「值得关注的重要资料」（如：作业/试卷/考试通知/"
         "证件/病历/缴费单/报名表/失物照片/事故现场等），并给出一句话内容描述和分类。\n"
@@ -170,7 +186,7 @@ async def analyze_image(config: dict, image_path: str, msg_text: str = "") -> di
         {"type": "text", "text": prompt},
         {"type": "image_url", "image_url": {"url": data_url}},
     ]}]
-    model = config.get("AI_MODEL_VISION", "qwen-vl-plus")
+    model = config.get("AI_MODEL_VISION") or config.get("AI_MODEL", "deepseek-v4.1-flash-1017")
     # 视觉模型专用调用（不走 chat_completion 的 enable_thinking）
     body = {"model": model, "messages": messages, "max_tokens": 500}
     try:
@@ -219,10 +235,17 @@ async def analyze_file(config: dict, orig_name: str, msg_text: str = "") -> dict
 # ═══════════════════════════════════════════════
 
 async def transcribe_audio(config: dict, audio_path: str) -> str:
-    """语音转文字：上传 → paraformer-v2 异步转写 → 轮询结果；失败返回空串"""
+    """语音转文字：上传 → paraformer-v2 异步转写 → 轮询结果；失败返回空串。
+
+    ⚠️ 该链路使用阿里云百炼**专有异步接口**（/api/v1/files + paraformer-v2），
+    不属于 OpenAI 兼容协议，无法随文本/图像一起迁移到第三方兼容平台。
+    若 AI_BASE_URL 已指向非百炼平台，这里直接跳过（QQ 语音走官方 asr_refer_text，
+    不受影响；钉钉/飞书/企微语音将暂不可转写，可在需要时单独接入 ASR）。"""
     key = config.get("AI_API_KEY", "")
     if not key:
         return ""
+    if "dashscope.aliyuncs.com" not in config.get("AI_BASE_URL", ""):
+        return ""   # 非百炼平台：专有接口不可用，静默跳过
     base = "https://dashscope.aliyuncs.com/api/v1"
     try:
         async with httpx.AsyncClient(timeout=30) as c:

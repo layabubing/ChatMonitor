@@ -16,6 +16,16 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **AI 调用统一迁移到千问 AI 平台 `deepseek-v4.1-flash-1017`**（文本 / 文件 / 图像三类识别统一同一模型）
+  - `config.py` + `configs/app.env.example`：`AI_BASE_URL` → `https://maas.qianwenaiapi.com/compatible-mode/v1`；`AI_MODEL`、`AI_MODEL_VISION` → `deepseek-v4.1-flash-1017`；`AI_ENABLE_THINKING` 默认改为 `false`
+  - `core/analyzer.py`：`chat_completion()` / `analyze_image()` 的默认模型名与 endpoint 同步；**新增 `enable_thinking` 兼容降级**（平台返回 400/422 时自动去掉该参数重试一次）；图像请求的 MIME 改为**按真实扩展名推断**（PNG/WEBP/GIF/BMP），修复原先一律标 `image/jpeg` 的问题
+  - `core/reporter.py`：日报落款与模型展示默认值同步
+  - `README.md` / `docs/ACCOUNT_SETUP.md` / `docs/gen_creation.py` / `docs/gen_manual.py`：模型名与平台说明同步更新
+  - ⚠️ **语音转写不在本次迁移范围**：钉钉/飞书/企微的语音识别依赖百炼**专有异步接口**（`/api/v1/files` + `paraformer-v2`），不属于 OpenAI 兼容协议，第三方平台无法直接替代。当 `AI_BASE_URL` 非百炼时该函数自动跳过（QQ 语音走官方 `asr_refer_text`，不受影响）
+  - 新增 **`verify_ai.py`**：一条命令自检「文本 / 文件识别 / 图像识别」三条链路，输出成功状态与服务端错误摘要
+
 ### Added
 
 - **平台绑定档案：绑定的「历史版本」管理与一键切换**

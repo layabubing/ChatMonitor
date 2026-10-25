@@ -93,10 +93,10 @@ DEFAULTS = {
     "ADMIN_PASSWORD_SALT": "",
     "JWT_SECRET": "change-me-to-a-long-random-secret",
     "AI_API_KEY": "",
-    "AI_BASE_URL": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    "AI_MODEL": "deepseek-v4-flash-0731",
-    "AI_MODEL_VISION": "qwen-vl-plus",   # 图片识别（阿里云百炼视觉模型）
-    "AI_ENABLE_THINKING": "true",
+    "AI_BASE_URL": "https://maas.qianwenaiapi.com/compatible-mode/v1",
+    "AI_MODEL": "deepseek-v4.1-flash-1017",
+    "AI_MODEL_VISION": "deepseek-v4.1-flash-1017",   # 与文本统一；若该模型不支持图像输入，可在 app.env 单独覆盖为视觉模型
+    "AI_ENABLE_THINKING": "false",                   # 百炼专有参数，第三方兼容平台默认不传
     # 安全配置
     "REGISTER_OPEN": "false",         # 是否开放注册（默认关闭；内网/受控环境可改 true 或启用邀请码）
     "REGISTER_INVITE_CODE": "",       # 邀请码（非空则注册必须填写）

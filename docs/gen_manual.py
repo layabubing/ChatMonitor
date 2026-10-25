@@ -139,7 +139,7 @@ for s in [
     '我的账号（所有用户）：修改昵称、修改密码（需验证旧密码，改后重新登录）；',
     '我的 QQ / 钉钉账号绑定（所有用户）：填写【你自己】的平台凭证（AppID/Secret）→ 测试连接 → 保存并重启生效；每个账号绑定自己的机器人，互不可见；绑定保存后 15 秒内 worker 自动接入（无需手动重启服务）；',
     '我的关键词库（所有用户）：按类别增删【你自己】的关键词，添加即自动保存并实时生效；',
-    'AI 信息（所有用户可见）：展示系统全局共用的 AI 模型（deepseek-v4-flash-0731 / qwen-vl-plus / paraformer-v2），由部署者统一配置。',
+    'AI 信息（所有用户可见）：展示系统全局共用的 AI 模型（deepseek-v4.1-flash-1017 / deepseek-v4.1-flash-1017 / paraformer-v2），由部署者统一配置。',
 ]:
     doc.add_paragraph(s, style='List Bullet')
 

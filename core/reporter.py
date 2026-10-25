@@ -111,7 +111,7 @@ def _write_docx(path: str, config: dict, platform: str, date_str: str, summary: 
         doc.add_paragraph(f"[{m['group_name'] or '群'}][{m['sender']}] {m['content'][:80]}")
 
     doc.add_paragraph()
-    doc.add_paragraph(f"🤖 本报告由智能分析助手自动生成（{config.get('AI_MODEL', 'deepseek-v4-flash-0731')}）")
+    doc.add_paragraph(f"🤖 本报告由智能分析助手自动生成（{config.get('AI_MODEL', 'deepseek-v4.1-flash-1017')}）")
     doc.save(path)
 
 
@@ -123,7 +123,7 @@ def _esc(s: str) -> str:
 
 def _write_html(path: str, config: dict, platform: str, date_str: str, summary: str,
                 msgs_raw: list[dict], alerts: list[dict]) -> None:
-    model = config.get("AI_MODEL", "deepseek-v4-flash-0731")
+    model = config.get("AI_MODEL", "deepseek-v4.1-flash-1017")
     name = PLATFORM_NAMES.get(platform, platform.upper())
     alert_rows = "".join(
         f'<tr><td class="p-{_esc(a["priority"])}">{_esc(a["priority"])}</td><td>{_esc(a["content"])}</td>'
