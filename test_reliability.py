@@ -35,7 +35,9 @@ class IsolatedTest(unittest.TestCase):
     def setUp(self):
         self.stack = ExitStack()
         self.addCleanup(self.stack.close)
-        self.root = Path(self.stack.enter_context(tempfile.TemporaryDirectory()))
+        # Windows 下 SQLite 连接未及时释放时无法删除已打开的文件，
+        # 允许清理失败（仅影响临时目录回收，不影响断言结果）
+        self.root = Path(self.stack.enter_context(tempfile.TemporaryDirectory(ignore_cleanup_errors=True)))
         for name in ('DATA_DIR', 'CONFIGS_DIR', 'LOGS_DIR', 'REPORTS_DIR'):
             path = self.root / name.lower()
             path.mkdir()
