@@ -98,6 +98,14 @@ class PlatformAdapter(abc.ABC):
         """子线程调用：投递一条消息"""
         self._queue.put(msg)
 
+    def acknowledge(self, msg: ChatMessage) -> None:
+        """Called after the worker durably stores the message and analysis jobs."""
+        return None
+
+    def reject(self, msg: ChatMessage) -> None:
+        """Allow durable adapters to redeliver a failed ingestion."""
+        return None
+
     # ── 状态 ──
     def set_connected(self, ok: bool) -> None:
         """子类在「连接就绪 / 连接断开」时调用；未调用的平台保持 None（不做连接检查）"""

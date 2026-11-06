@@ -31,6 +31,8 @@ class Pipeline:
         self.username = username
         self._paused = False
         self._lock = threading.Lock()
+        self._analysis_lock = threading.Lock()
+        self._report_lock = threading.Lock()
         # 用户级实例使用用户自己的关键词库（多租户）
         self._user_words: list[str] = []
         if username:
@@ -58,35 +60,51 @@ class Pipeline:
             return self._paused
 
     # ── 主入口 ──
-    def process_batch(self, msgs: list[ChatMessage]) -> int:
-        """处理一批消息：入库去重，命中关键词的送 AI 确认，重要则提醒"""
-        if not msgs or self.is_paused():
+    def process_batch(self, msgs: list[ChatMessage], analyze: bool = True) -> int:
+        """Persist messages AND AI work atomically before acknowledging delivery.
+
+        Workers pass analyze=False; the scheduler processes persistent jobs outside
+        ingestion. The default keeps the synchronous API used by local tools.
+        """
+        if not msgs:
             return 0
-        added_ids = self.storage.insert_messages(msgs)
-        if not added_ids:
-            return 0
-        added_set = set(added_ids)
-        # 只对【本次新增】的消息做判定，避免重复提醒
-        new_msgs = [m for m in msgs if m.msg_id in added_set and m.content]
-        # 媒体处理：保存的文件入库 + AI 识别重要文件
-        self._process_media(msgs, added_set)
-        candidates = [m for m in new_msgs if self._match(m.content)]
-        if candidates:
-            try:
-                loop = asyncio.new_event_loop()
-                try:
-                    items = loop.run_until_complete(
-                        analyzer.confirm_importance(self.config, candidates))
-                finally:
-                    loop.close()
-            except Exception as e:  # noqa: BLE001
-                print(f"[pipeline] AI 确认失败: {e}")
-                items = []
-            for it in items:
-                if self.storage.add_alert(it):
-                    print(f"[{self.platform}] ⚠ 重要提醒 [{it.priority}]: {it.content[:40]} | 建议: {it.suggestion[:40]}")
-                    self._push_serverchan(it)
+        added_ids = self.storage.insert_messages(msgs, enqueue_analysis=True)
+        if analyze:
+            self.retry_analysis(limit=max(20, len(msgs) * 2))
         return len(added_ids)
+
+    def retry_analysis(self, limit: int = 20) -> int:
+        """Run due/expired jobs, retaining failures with bounded exponential backoff."""
+        if self.is_paused() or not self._analysis_lock.acquire(blocking=False):
+            return 0
+        completed = 0
+        try:
+            for _ in range(limit):
+                job = self.storage.claim_analysis(self.platform)
+                if job is None:
+                    break
+                message = ChatMessage(**{key: job[key] for key in (
+                    'msg_id', 'platform', 'group_id', 'group_name', 'sender', 'content',
+                    'msg_type', 'media_urls', 'ts')})
+                try:
+                    if job['kind'] == 'media':
+                        self._handle_saved_media(message, job['target'], 0)
+                    elif self._match(message.content):
+                        items = asyncio.run(analyzer.confirm_importance(self.config, [message]))
+                        for item in items:
+                            if self.storage.add_alert(item):
+                                self._push_serverchan(item)
+                    self.storage.finish_analysis(job['receipt'])
+                    completed += 1
+                except Exception as exc:  # noqa: BLE001
+                    # Only our controlled error messages may be persisted. Raw
+                    # network exceptions can contain URLs, tokens or message data.
+                    error = str(exc) if isinstance(exc, analyzer.AnalysisError) else type(exc).__name__
+                    self.storage.finish_analysis(job['receipt'], error=error)
+                    print(f"[{self.platform}] AI 分析待补跑 ({job['kind']}): {error}")
+        finally:
+            self._analysis_lock.release()
+        return completed
 
     # ── 可选推送（Server酱） ──
     def _push_serverchan(self, item: ImportantItem) -> None:
@@ -104,50 +122,22 @@ class Pipeline:
             print(f"[pipeline] Server酱推送失败: {e}")
 
     # ── 媒体处理：本地保存的文件入库 + AI 识别重要文件 ──
-    def _process_media(self, msgs: list[ChatMessage], added_set: set) -> None:
-        for m in msgs:
-            if m.msg_id not in added_set:
-                continue
-            for idx, path in enumerate(m.media_urls or []):
-                if not isinstance(path, str):
-                    continue
-                # 多租户：路径可能是 media/ 或 users/{username}/media/
-                if not (path.startswith("media/") or path.startswith("users/")):
-                    continue
-                try:
-                    self._handle_saved_media(m, path, idx)
-                except Exception as e:  # noqa: BLE001
-                    print(f"[pipeline] 媒体处理失败: {e}")
-
     def _handle_saved_media(self, m: ChatMessage, path: str, idx: int) -> None:
         abs_path = DATA_DIR / path
         if not abs_path.exists():
-            return
+            raise analyzer.AnalysisError("待识别媒体不存在")
         ext = path.rsplit(".", 1)[-1].lower() if "." in path else ""
         ftype = media.guess_type(ext, path, abs_path.name)
         orig_name = abs_path.name
         size = abs_path.stat().st_size
-        added = self.storage.add_file(self.platform, m.msg_id, path, orig_name,
-                                      ftype, ext, size, m.ts)
-        if not added:
-            return
-        # AI 识别：图片用视觉模型，其他用文本模型
-        try:
-            loop = asyncio.new_event_loop()
-            try:
-                if ftype == "image":
-                    info = loop.run_until_complete(
-                        analyzer.analyze_image(self.config, str(abs_path), m.content))
-                else:
-                    info = loop.run_until_complete(
-                        analyzer.analyze_file(self.config, orig_name, m.content))
-            finally:
-                loop.close()
-        except Exception as e:  # noqa: BLE001
-            print(f"[pipeline] 文件 AI 识别失败: {e}")
-            return
-        if not info:
-            return
+        self.storage.add_file(self.platform, m.msg_id, path, orig_name,
+                              ftype, ext, size, m.ts)
+        if ftype == "image":
+            info = asyncio.run(analyzer.analyze_image(self.config, str(abs_path), m.content))
+        else:
+            info = asyncio.run(analyzer.analyze_file(self.config, orig_name, m.content))
+        if not info or type(info.get('important')) is not bool:
+            raise analyzer.AnalysisError("文件分析无有效结果")
         important = 1 if info.get("important") else 0
         self.storage.update_file_ai(self.platform, path, important,
                                     info.get("desc", ""), info.get("category", "其他"))
@@ -164,46 +154,44 @@ class Pipeline:
 
     # ── 日报 ──
     def build_daily_report(self, date_str: str | None = None):
-        """生成当日报告（由 scheduler 或命令触发）"""
+        """Persist a report request before attempting it (scheduler or command)."""
+        from core.dates import day_bounds, today
+        date_str = date_str or today(self.config.get('REPORT_TIMEZONE', ''))
+        day_bounds(date_str, self.config.get('REPORT_TIMEZONE', ''))
+        self.storage.request_report(self.platform, date_str)
+        return self.retry_reports(date_str)
+
+    def retry_reports(self, date_str: str | None = None):
+        """Retry one due report, including AI failures and interrupted generation."""
         from core.reporter import generate_report
-        return generate_report(self.storage, self.config, self.platform, date_str, self.username)
+        if self.is_paused() or not self._report_lock.acquire(blocking=False):
+            return None
+        try:
+            task = self.storage.claim_report(self.platform, date_str)
+            if task is None:
+                return None
+            try:
+                report = generate_report(self.storage, self.config, self.platform, task['date'], self.username)
+            except Exception as exc:  # noqa: BLE001
+                error = str(exc) if isinstance(exc, analyzer.AnalysisError) else type(exc).__name__
+                self.storage.finish_report(task['receipt'], error)
+                print(f"[{self.platform}] 日报待补跑 ({task['date']}): {error}")
+                return None
+            self.storage.finish_report(task['receipt'])
+            return report
+        finally:
+            self._report_lock.release()
 
     # ── 补判定：重载关键词后对今日未提醒消息重新扫描 ──
     def rescan_today(self) -> int:
-        """重新扫描当日已入库但未产生提醒的消息，补做关键词+AI 判定；返回新增提醒数"""
-        import datetime
-        today_start = int(datetime.datetime.now().replace(
-            hour=0, minute=0, second=0, microsecond=0).timestamp() * 1000)
-        res = self.storage.query_messages(self.platform, page=1, page_size=2000)
-        msgs_today = [m for m in res["items"] if m["ts"] >= today_start]
-        if not msgs_today:
-            return 0
-        alerts = self.storage.query_alerts(platform=self.platform, page=1, page_size=500)["items"]
-        alerted_ids = {a["msg_id"] for a in alerts}
-        candidates = [
-            ChatMessage(msg_id=m["msg_id"], platform=self.platform, group_id=m["group_id"],
-                        group_name=m["group_name"], sender=m["sender"], content=m["content"],
-                        msg_type=m["msg_type"], ts=m["ts"])
-            for m in msgs_today
-            if m["msg_id"] not in alerted_ids and m["content"] and self._match(m["content"])
-        ]
-        if not candidates:
-            return 0
-        try:
-            loop = asyncio.new_event_loop()
-            try:
-                items = loop.run_until_complete(
-                    analyzer.confirm_importance(self.config, candidates))
-            finally:
-                loop.close()
-        except Exception as e:  # noqa: BLE001
-            print(f"[pipeline] 补判定 AI 调用失败: {e}")
-            return 0
-        n = 0
-        for it in items:
-            if self.storage.add_alert(it):
-                n += 1
-                print(f"[{self.platform}] ⚠ 补判定重要提醒 [{it.priority}]: {it.content[:40]} | 建议: {it.suggestion[:40]}")
-                self._push_serverchan(it)
-        print(f"[{self.platform}] 补判定完成，新增提醒 {n} 条")
-        return n
+        """Persist a complete-day keyword rescan; failures use the same retry queue."""
+        from core.dates import day_bounds, today
+        timezone = self.config.get('REPORT_TIMEZONE', '')
+        start, end = day_bounds(today(timezone), timezone)
+        messages, alerts = self.storage.report_inputs(self.platform, start, end)
+        alerted_ids = {alert['msg_id'] for alert in alerts}
+        ids = [message['msg_id'] for message in messages
+               if message['msg_id'] not in alerted_ids and self._match(message['content'])]
+        self.storage.reschedule_importance(ids)
+        print(f"[{self.platform}] 已安排补判定 {len(ids)} 条消息")
+        return len(ids)

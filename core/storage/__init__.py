@@ -16,11 +16,12 @@ from core.storage.alerts import AlertRepo
 from core.storage.base import StorageBase
 from core.storage.cursors import CursorRepo
 from core.storage.files import FileRepo
+from core.storage.jobs import AnalysisRepo
 from core.storage.messages import MessageRepo
 from core.storage.reports import ReportRepo
 
 
-class Storage(StorageBase, MessageRepo, AlertRepo, ReportRepo, FileRepo, CursorRepo):
+class Storage(StorageBase, MessageRepo, AlertRepo, ReportRepo, FileRepo, CursorRepo, AnalysisRepo):
     """多表存储门面：方法由各表仓储 Mixin 提供，共享同一连接管理与写锁。"""
 
 

@@ -5,7 +5,6 @@
 """
 from __future__ import annotations
 
-import os
 import random
 import string
 import sys
@@ -38,6 +37,13 @@ def _fresh_aes_key(seed: int) -> str:
 def main():
     print("══ 1. PLATFORM_META 注册表 ══")
     import config
+    root = Path(tempfile.mkdtemp(prefix="chatmon_ext_root_"))
+    config.DATA_DIR = root / 'data'
+    config.CONFIGS_DIR = root / 'configs'
+    config.LOGS_DIR = root / 'logs'
+    config.CONFIGS_DIR.mkdir(parents=True)
+    from core.accounts import db
+    db.set_store_path(root / 'users.db')
     check("注册表含 4 平台", set(config.PLATFORMS) == {"qq", "dingtalk", "feishu", "workwechat"},
           str(config.PLATFORMS))
     check("feishu 凭证键", config.PLATFORM_META["feishu"]["app_id_key"] == "FEISHU_APP_ID")
@@ -116,6 +122,7 @@ def main():
 
     print("══ 5. 企业微信回调端点端到端 ══")
     from fastapi.testclient import TestClient
+
     import web.server
     client = TestClient(web.server.app)
     from core import accounts
@@ -143,9 +150,13 @@ def main():
         content=outer2.encode("utf-8"), headers={"Content-Type": "text/xml"})
     check("POST 接收 success", r3.status_code == 200 and r3.text == "success", r3.text)
     # 回调推送带 corpid（ToUserName）→ 落入对应子目录，需按 scope 消费
-    msgs = inbox.pop_messages("workwechat", scope=corp_id)
-    check("收件箱落盘(按 corpid scope)", len(msgs) == 1 and msgs[0]["msg_id"] == "workwechat_1234567890"
+    from core import delivery
+    claimed = delivery.claim("workwechat", corp_id, "1000002", "admin")
+    msgs = [claimed["message"]] if claimed else []
+    check("收件箱落盘(按企业/应用/订阅者隔离)", len(msgs) == 1 and msgs[0]["msg_id"] == "workwechat_1234567890"
           and msgs[0]["chat_id"] == "wr_test123" and msgs[0]["content"] == "你好，测试", str(msgs))
+    if claimed:
+        assert delivery.acknowledge(claimed["receipt"])
     # 限流验证：连续错误签名触发 429
     r429 = None
     for _ in range(35):

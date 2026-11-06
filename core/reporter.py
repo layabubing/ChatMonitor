@@ -3,35 +3,37 @@
 """
 from __future__ import annotations
 
-import datetime
+import os
+import tempfile
 from pathlib import Path
 
-from config import platform_report_dir
+from config import PLATFORM_META, platform_report_dir
 from core import analyzer
-from core.models import ReportData
+from core.dates import day_bounds, today
+from core.models import ImportantItem, ReportData
 from core.storage import Storage
+from core.storage.reports import ReportPendingError
 
-PLATFORM_NAMES = {"qq": "QQ", "dingtalk": "钉钉"}
-
-
-def _today() -> str:
-    return datetime.date.today().isoformat()
+PLATFORM_NAMES = {name: meta["display_name"] for name, meta in PLATFORM_META.items()}
 
 
 async def _build_summary(storage: Storage, config: dict, platform: str, date_str: str):
-    """收集当日消息 + 重要事项，调用 AI 生成总结"""
-    start = int(datetime.datetime.strptime(date_str, "%Y-%m-%d").timestamp() * 1000)
-    end = start + 86400_000
-    res = storage.query_messages(platform, page=1, page_size=500)
-    msgs_raw = [m for m in res["items"] if start <= m["ts"] < end]
-    alerts = storage.query_alerts(platform=platform, page=1, page_size=100)["items"]
-    today_alerts = [a for a in alerts if start <= a["ts"] < end]
+    """Read all messages and alerts in the requested calendar day, without paging."""
+    start, end = day_bounds(date_str, config.get('REPORT_TIMEZONE', ''))
+    try:
+        msgs_raw, today_alerts = storage.report_inputs(
+            platform, start, end, require_analyzed=bool(config.get('AI_API_KEY')))
+    except ReportPendingError as exc:
+        raise analyzer.AnalysisError(str(exc)) from None
 
     from core.models import ChatMessage
     msgs = [ChatMessage(msg_id=m["msg_id"], platform=platform, group_id=m["group_id"],
                         group_name=m["group_name"], sender=m["sender"], content=m["content"],
                         msg_type=m["msg_type"], ts=m["ts"]) for m in msgs_raw]
-    summary = await analyzer.generate_summary(config, platform, msgs, [])
+    important = [ImportantItem(**{key: alert[key] for key in (
+        'platform', 'msg_id', 'content', 'reason', 'suggestion', 'priority',
+        'sender', 'group_name', 'ts', 'is_read')}) for alert in today_alerts]
+    summary = await analyzer.generate_summary(config, platform, msgs, important)
     return summary, len(msgs), len(today_alerts), msgs_raw, today_alerts
 
 
@@ -39,7 +41,7 @@ def generate_report(storage: Storage, config: dict, platform: str,
                     date_str: str | None = None, username: str = "") -> ReportData | None:
     """同步入口：生成某日报告（docx + html）；username 指定时输出到用户目录"""
     import asyncio
-    date_str = date_str or _today()
+    date_str = date_str or today(config.get('REPORT_TIMEZONE', ''))
     loop = asyncio.new_event_loop()
     try:
         summary, msg_count, imp_count, msgs_raw, alerts = loop.run_until_complete(
@@ -57,10 +59,16 @@ def generate_report(storage: Storage, config: dict, platform: str,
     docx_path = str(base.with_suffix(".docx"))
     html_path = str(base.with_suffix(".html"))
 
-    _write_docx(docx_path, config, platform, date_str, summary, msgs_raw, alerts)
-    _write_html(html_path, config, platform, date_str, summary, msgs_raw, alerts)
+    # Render both formats before replacing either previously generated output.
+    with tempfile.TemporaryDirectory(prefix='.report-', dir=out_dir) as temporary:
+        docx_tmp = str(Path(temporary) / 'report.docx')
+        html_tmp = str(Path(temporary) / 'report.html')
+        _write_docx(docx_tmp, config, platform, date_str, summary, msgs_raw, alerts)
+        _write_html(html_tmp, config, platform, date_str, summary, msgs_raw, alerts)
+        os.replace(docx_tmp, docx_path)
+        os.replace(html_tmp, html_path)
 
-    report = ReportData(platform=platform, date=date_str, summary=summary[:2000],
+    report = ReportData(platform=platform, date=date_str, summary=summary,
                         docx_path=docx_path, html_path=html_path,
                         msg_count=msg_count, important_count=imp_count)
     storage.save_report(report)
@@ -102,13 +110,13 @@ def _write_docx(path: str, config: dict, platform: str, date_str: str, summary: 
         for a in alerts:
             row = table.add_row().cells
             row[0].text = a["priority"]
-            row[1].text = a["content"][:120]
+            row[1].text = a["content"]
             row[2].text = f"{a['group_name']}/{a['sender']}"
-            row[3].text = a["suggestion"][:150]
+            row[3].text = a["suggestion"]
 
-    doc.add_heading("🗂 消息摘要", level=1)
-    for m in msgs_raw[:40]:
-        doc.add_paragraph(f"[{m['group_name'] or '群'}][{m['sender']}] {m['content'][:80]}")
+    doc.add_heading("🗂 完整消息记录", level=1)
+    for m in msgs_raw:
+        doc.add_paragraph(f"[{m['group_name'] or '群'}][{m['sender']}] {m['content']}")
 
     doc.add_paragraph()
     doc.add_paragraph(f"🤖 本报告由智能分析助手自动生成（{config.get('AI_MODEL', 'deepseek-v4.1-flash-1017')}）")
@@ -133,7 +141,7 @@ def _write_html(path: str, config: dict, platform: str, date_str: str, summary: 
     msg_items = "".join(
         f'<li><b>{_esc(m["sender"])}</b> <span class="grp">{_esc(m["group_name"])}</span>'
         f'<div class="c">{_esc(m["content"])}</div></li>'
-        for m in msgs_raw[:60]
+        for m in msgs_raw
     ) or "<li>无消息</li>"
     summary_html = "".join(
         f"<p>{_esc(line)}</p>" for line in summary.split("\n") if line.strip()
@@ -159,7 +167,7 @@ ul{{padding-left:20px}}li{{margin:8px 0}}.grp{{color:#8a94a6;font-size:12px;marg
 <div class="card"><b>📊 概要</b>：当日消息 {len(msgs_raw)} 条 ｜ 重要事项 {len(alerts)} 条</div>
 <h2>📝 AI 总结</h2><div class="card">{summary_html}</div>
 <h2>⚠️ 重要事项</h2><div class="card"><table><tr><th>优先级</th><th>内容</th><th>来源</th><th>执行建议</th></tr>{alert_rows}</table></div>
-<h2>🗂 消息摘要</h2><div class="card"><ul>{msg_items}</ul></div>
+<h2>🗂 完整消息记录</h2><div class="card"><ul>{msg_items}</ul></div>
 <div class="foot">🤖 本报告由智能分析助手自动生成（{model}）</div>
 </div></body></html>"""
     Path(path).write_text(html, encoding="utf-8")

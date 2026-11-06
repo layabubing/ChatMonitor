@@ -71,6 +71,28 @@ CREATE INDEX IF NOT EXISTS idx_files_platform_ts ON files(platform, ts);
 CREATE INDEX IF NOT EXISTS idx_messages_ts ON messages(ts);
 CREATE INDEX IF NOT EXISTS idx_messages_platform_ts ON messages(platform, ts);
 CREATE INDEX IF NOT EXISTS idx_alerts_platform_ts ON alerts(platform, ts);
+CREATE TABLE IF NOT EXISTS analysis_jobs (
+    msg_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    target TEXT NOT NULL DEFAULT '',
+    state TEXT NOT NULL DEFAULT 'pending',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    available_at REAL NOT NULL DEFAULT 0,
+    receipt TEXT NOT NULL DEFAULT '',
+    last_error TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY(msg_id, kind, target)
+);
+CREATE INDEX IF NOT EXISTS idx_analysis_due ON analysis_jobs(state, available_at);
+CREATE TABLE IF NOT EXISTS report_tasks (
+    platform TEXT NOT NULL,
+    date TEXT NOT NULL,
+    state TEXT NOT NULL DEFAULT 'pending',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    available_at REAL NOT NULL DEFAULT 0,
+    receipt TEXT NOT NULL DEFAULT '',
+    last_error TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY(platform, date)
+);
 """
 
 

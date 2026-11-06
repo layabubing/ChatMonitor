@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import sys
 import time
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -47,7 +48,7 @@ def _collect_instances(platform: str, config: dict) -> list[dict]:
         cfg.update(u["config"])
         cfg[f"{platform.upper()}_ENABLED"] = "true"
         u_appid = cfg.get(app_id_key, "")
-        if global_enabled and u_appid and u_appid == global_appid:
+        if platform != "workwechat" and global_enabled and u_appid and u_appid == global_appid:
             print(f"[{platform}] 用户 {u['username']} 的凭证与全局相同，复用全局实例")
             continue
         instances.append({"username": u["username"], "config": cfg})
@@ -69,6 +70,38 @@ def _make_inst(platform: str, inst: dict) -> None:
     inst.update(storage=storage, pipeline=pipeline, adapter=adapter, started=False)
 
 
+def _sync_daily_jobs(scheduler, platform: str, instances: list[dict]) -> None:
+    """Keep scheduled reports tied to the current binding/pipeline lifecycle."""
+    prefix = f"daily_{platform}_"
+    wanted = {f"{prefix}user_{inst['username']}" if inst['username'] else f"{prefix}global": inst
+              for inst in instances}
+    for job in scheduler.get_jobs():
+        if job.id.startswith(prefix) and job.id not in wanted:
+            scheduler.remove_job(job.id)
+    for job_id, inst in wanted.items():
+        if scheduler.get_job(job_id) is None or not inst.get('daily_scheduled'):
+            cfg = inst['config']
+            scheduler.add_job(inst['pipeline'].build_daily_report, 'cron',
+                              hour=int(cfg.get('REPORT_HOUR', 18)),
+                              minute=int(cfg.get('REPORT_MINUTE', 0)),
+                              timezone=ZoneInfo(cfg['REPORT_TIMEZONE']) if cfg.get('REPORT_TIMEZONE') else None,
+                              id=job_id, replace_existing=True)
+            inst['daily_scheduled'] = True
+
+
+def _ingest_message(inst: dict, msg) -> None:
+    """A durable delivery is acknowledged only after message + jobs commit."""
+    try:
+        inst['pipeline'].process_batch([msg], analyze=False)
+        inst['adapter'].acknowledge(msg)
+    except Exception as exc:  # noqa: BLE001
+        try:
+            inst['adapter'].reject(msg)
+        except Exception:  # noqa: BLE001
+            pass  # The lease still recovers a delivery if release also fails.
+        print(f"[worker] 消息入库失败，等待重投: {type(exc).__name__}")
+
+
 def run_worker(platform: str) -> None:
     """运行单个平台 worker 进程（多租户：动态维护每用户独立实例）"""
     config = get_platform_config(platform)
@@ -78,8 +111,7 @@ def run_worker(platform: str) -> None:
     for inst in instances:
         _make_inst(platform, inst)
     if not instances:
-        print(f"[{platform}] 无启用绑定（全局未启用且无用户绑定），退出")
-        return
+        print(f"[{platform}] 暂无启用绑定，保持待命并扫描新绑定")
     print(f"[{platform}] worker 启动，实例数: {len(instances)} "
           f"({', '.join(i['username'] or 'global' for i in instances)})")
 
@@ -89,15 +121,16 @@ def run_worker(platform: str) -> None:
         if inst["username"]:
             commands.consume_commands(platform, inst["username"])
     should_exit = {"flag": False}
+    scheduler = BackgroundScheduler()
 
     def _sync_instances():
         """定期重扫绑定列表：新增用户实例 / 移除停用实例 / 配置变更重建实例（多租户动态扩展）"""
-        fresh = _collect_instances(platform, config)
+        fresh = _collect_instances(platform, get_platform_config(platform))
         fresh_map = {i["username"]: i for i in fresh}
         cur_map = {i["username"]: i for i in instances}
         # 移除已停用/删除的实例
         for inst in list(instances):
-            if inst["username"] and inst["username"] not in fresh_map:
+            if inst["username"] not in fresh_map:
                 try:
                     inst["adapter"].stop()
                 except Exception:  # noqa: BLE001
@@ -106,8 +139,6 @@ def run_worker(platform: str) -> None:
                 print(f"[{platform}] 已移除实例: {inst['username'] or 'global'}")
         # 配置变更（改绑定凭证/开关）→ 重建实例（无需重启 worker）
         for uname, f in fresh_map.items():
-            if not uname:
-                continue
             cur = cur_map.get(uname)
             if cur and cur["config"] != f["config"]:
                 try:
@@ -120,7 +151,7 @@ def run_worker(platform: str) -> None:
                 print(f"[{platform}] 绑定变更，重建实例: {uname}")
         # 新增用户实例
         for f in fresh:
-            if f["username"] and f["username"] not in {i["username"] for i in instances}:
+            if f["username"] not in {i["username"] for i in instances}:
                 _make_inst(platform, f)
                 instances.append(f)
                 print(f"[{platform}] 已新增实例: {f['username']}")
@@ -133,6 +164,7 @@ def run_worker(platform: str) -> None:
                     print(f"[{platform}] 实例启动: {inst['username'] or 'global'}")
                 except Exception as e:  # noqa: BLE001
                     print(f"[{platform}] 实例启动失败({inst['username'] or 'global'}): {e}")
+        _sync_daily_jobs(scheduler, platform, instances)
 
     _sync_instances()   # 首轮同步（含启动 adapter）
 
@@ -177,23 +209,33 @@ def run_worker(platform: str) -> None:
                         if target and inst["username"] != target:
                             continue
                         inst["pipeline"].rescan_today()
+                elif cmd == "retry_analysis":
+                    for inst in list(instances):
+                        if target and inst['username'] != target:
+                            continue
+                        inst['storage'].reset_failed_analysis(platform)
+                        inst['storage'].reset_failed_reports(platform)
                 elif cmd == "restart":
                     print(f"[{platform}] 收到 restart，退出进程（systemd/launcher 将自动拉起）")
                     should_exit["flag"] = True
             except Exception as e:  # noqa: BLE001
                 print(f"[{platform}] 命令执行失败 {cmd}: {e}")
 
-    scheduler = BackgroundScheduler()
     scheduler.add_job(_consume_cmds, "interval",
                       seconds=max(2, int(config.get("COMMAND_INTERVAL", 3))),
                       id=f"cmds_{platform}")
     # 定期重扫绑定（多租户动态实例：新绑定用户自动接入）
     scheduler.add_job(_sync_instances, "interval", seconds=15, id=f"sync_{platform}")
-    for inst in instances:
-        scheduler.add_job(lambda i=inst: i["pipeline"].build_daily_report(), "cron",
-                          hour=int(config.get("REPORT_HOUR", 18)),
-                          minute=int(config.get("REPORT_MINUTE", 0)),
-                          id=f"daily_{platform}_{inst['username'] or 'global'}")
+    def _retry_analysis():
+        for inst in list(instances):
+            inst['pipeline'].retry_analysis(limit=5)
+
+    def _retry_reports():
+        for inst in list(instances):
+            inst['pipeline'].retry_reports()
+
+    scheduler.add_job(_retry_analysis, "interval", seconds=10, id=f"analysis_{platform}")
+    scheduler.add_job(_retry_reports, "interval", seconds=10, id=f"reports_{platform}")
     scheduler.start()
 
     last_alive = 0.0
@@ -202,9 +244,11 @@ def run_worker(platform: str) -> None:
         while True:
             if should_exit["flag"]:
                 break
-            for inst in instances:
+            for inst in list(instances):
+                if inst['pipeline'].is_paused():
+                    continue
                 for msg in inst["adapter"].iter_messages(timeout=0.5):
-                    inst["pipeline"].process_batch([msg])
+                    _ingest_message(inst, msg)
             # 心跳文件（web 判断运行状态；内容为「时间戳:连接是否就绪」）
             # 连接未就绪时写 0，避免「进程在跑但连不上平台」被误显示为「运行中」
             # 单点写入失败（目录缺失/权限异常等）不得中断主循环，故逐个包裹
@@ -212,9 +256,9 @@ def run_worker(platform: str) -> None:
             if now - last_alive >= 30:
                 ts = int(now)
 
-                def _alive_payload(adapter) -> str:
+                def _alive_payload(adapter, timestamp=ts) -> str:
                     st = adapter.connection_state()
-                    return f"{ts}:{1 if (st is None or st) else 0}"
+                    return f"{timestamp}:{1 if (st is None or st) else 0}"
 
                 global_inst = next((i for i in instances if not i["username"]), None)
                 if global_inst:

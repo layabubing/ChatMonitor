@@ -21,5 +21,7 @@ async def api_overview(request: Request):
         ov["alive"] = rt["alive"]       # worker 进程是否在跑
         ov["connected"] = rt["ready"]   # 连接是否就绪（区分「没跑」与「在跑但连不上」）
         ov["today_messages"] = st.count_messages_today(p)
+        ov["analysis"] = st.analysis_status()
+        ov["report_tasks"] = st.report_task_status(p)
         result[p] = ov
     return result

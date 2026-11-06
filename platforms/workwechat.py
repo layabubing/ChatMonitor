@@ -6,11 +6,12 @@
 """
 from __future__ import annotations
 
+import threading
 import time
 
 import httpx
 
-from core import inbox
+from core import delivery, workwechat_routing
 from core.adapter import PlatformAdapter
 from core.models import ChatMessage
 
@@ -37,6 +38,8 @@ class WorkWechatAdapter(PlatformAdapter):
             g for g in (config.get("WORKWECHAT_CHAT_IDS") or "").split(",") if g.strip()}
         self._token = ""
         self._token_expire = 0.0
+        self._delivery_done = threading.Event()
+        self._receipt = ""
 
     # ── 鉴权 ──
     def _get_token(self) -> str:
@@ -58,20 +61,44 @@ class WorkWechatAdapter(PlatformAdapter):
         pass  # 轮询模式无需常驻连接
 
     def _run_loop(self) -> None:
-        # 多租户隔离：每个实例只消费自己 corpid 子目录（web 回调按 corpid 分目录写入）
-        scope = self._corp_id or ""
+        workwechat_routing.migrate_legacy()
         while self._running:
             try:
-                for raw in inbox.pop_messages("workwechat", scope=scope):
-                    msg = self._to_chatmessage(raw)
+                claimed = delivery.claim(self.name, self._corp_id, self._agent_id, self.username)
+                if claimed:
+                    self._receipt = claimed["receipt"]
+                    self._delivery_done.clear()
+                    msg = self._to_chatmessage(claimed["message"])
                     if msg:
                         self._emit(msg)
+                        # Keep only one leased delivery in memory. A process crash
+                        # leaves the row recoverable when its lease expires.
+                        while self._running and not self._delivery_done.wait(0.2):
+                            pass
+                        if not self._running:
+                            delivery.release(self._receipt)
+                    else:
+                        delivery.acknowledge(self._receipt)  # intentionally filtered group
+                    self._receipt = ""
             except Exception as e:  # noqa: BLE001
+                if self._receipt:
+                    delivery.release(self._receipt)
+                    self._receipt = ""
                 print(f"[workwechat] 收件箱消费异常: {e}")
             for _ in range(10):   # 2 秒轮询（可被 stop 打断）
                 if not self._running:
                     break
                 time.sleep(0.2)
+
+    def acknowledge(self, msg: ChatMessage) -> None:
+        if self._receipt:
+            delivery.acknowledge(self._receipt)
+        self._delivery_done.set()
+
+    def reject(self, msg: ChatMessage) -> None:
+        if self._receipt:
+            delivery.release(self._receipt)
+        self._delivery_done.set()
 
     # ── 消息转换 ──
     def _to_chatmessage(self, raw: dict) -> ChatMessage | None:

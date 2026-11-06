@@ -12,7 +12,7 @@ from web.envutil import allowed_keys
 
 router = APIRouter()
 
-_COMMANDS = ("generate_report", "pause", "resume", "reload_keywords", "restart")
+_COMMANDS = ("generate_report", "pause", "resume", "reload_keywords", "retry_analysis", "restart")
 
 
 # ── 平台控制命令 ──

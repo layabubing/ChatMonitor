@@ -5,12 +5,13 @@ import datetime
 import json
 
 from core.models import ChatMessage
+from core.storage.jobs import enqueue_jobs
 
 
 class MessageRepo:
     """依赖 StorageBase 提供的 self._connect / self._lock。"""
 
-    def insert_messages(self, msgs: list[ChatMessage]) -> list[str]:
+    def insert_messages(self, msgs: list[ChatMessage], enqueue_analysis: bool = False) -> list[str]:
         """批量插入，按 msg_id 去重；返回本次【新增】的 msg_id 列表。"""
         if not msgs:
             return []
@@ -28,6 +29,8 @@ class MessageRepo:
                     )
                     if cur.rowcount:
                         added_ids.append(m.msg_id)
+                    if enqueue_analysis:
+                        enqueue_jobs(conn, m)
                 except sqlite3.IntegrityError:
                     continue
             conn.commit()

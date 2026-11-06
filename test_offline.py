@@ -85,9 +85,12 @@ def main():
 
     # AI 确认打桩：把"着火"那条判为重要
     async def fake_confirm(cfg, cands):
+        cands = [m for m in cands if "着火" in m.content]
+        if not cands:
+            return []
         return [ImportantItem(platform="qq", msg_id=cands[0].msg_id, content=cands[0].content,
                               reason="疑似火灾，需立即核实", suggestion="联系宿管/保卫处，确认现场情况",
-                              priority="high")]
+                              priority="high", ts=cands[0].ts)]
     analyzer.confirm_importance = fake_confirm
 
     pipeline = Pipeline(storage, config, "qq")
@@ -117,6 +120,7 @@ def main():
 
     reports = storage.query_reports("qq")
     check("报告已入库", len(reports) == 1)
+    check("报告重要事项计数完整", rep and rep.important_count == 1)
 
     print("\n══ 3. Web API 认证与路由 ══")
     from fastapi.testclient import TestClient

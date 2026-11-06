@@ -11,8 +11,7 @@ from collections import deque
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 
-import config
-from core import accounts, inbox
+from core import delivery, workwechat_routing
 from web.wxmsgcrypt import WXBizMsgCrypt, WXBizMsgCryptError
 
 router = APIRouter()
@@ -43,15 +42,8 @@ def _reject() -> None:
 
 def _candidate_configs() -> list[dict]:
     """候选解密配置：全局 workwechat.env + 所有启用绑定的用户（按 corpid 匹配）。"""
-    out = []
-    g = config.get_platform_config("workwechat")
-    if g.get("WORKWECHAT_CORP_ID") and g.get("WORKWECHAT_TOKEN"):
-        out.append({"scope": "global", **g})
-    for u in accounts.list_bound_users("workwechat"):
-        c = u["config"]
-        if c.get("WORKWECHAT_CORP_ID") and c.get("WORKWECHAT_TOKEN"):
-            out.append({"scope": u["username"], **c})
-    return out
+    return [cfg for cfg in workwechat_routing.subscriptions()
+            if cfg.get("WORKWECHAT_CORP_ID") and cfg.get("WORKWECHAT_TOKEN")]
 
 
 def _make_crypt(cfg: dict) -> WXBizMsgCrypt | None:
@@ -100,7 +92,10 @@ async def workwechat_receive(request: Request):
     if _rate_limited():
         raise HTTPException(429, "回调请求过于频繁")
 
-    for cfg in _candidate_configs():
+    candidates = _candidate_configs()
+    authenticated = []
+    message = None
+    for cfg in candidates:
         crypt = _make_crypt(cfg)
         if not crypt:
             continue
@@ -108,35 +103,48 @@ async def workwechat_receive(request: Request):
             msg = crypt.decrypt_message(body, msg_signature, timestamp, nonce)
         except WXBizMsgCryptError:
             continue
-        msg_id = str(msg.get("MsgId", "") or "").strip()
-        if not msg_id:
-            # 事件类推送（subscribe 等）无 MsgId，忽略
-            return PlainTextResponse("success")
-        chat_id = (msg.get("ChatId") or "").strip() or (msg.get("FromUserName") or "").strip()
-        # 媒体消息：只取 MediaId（worker 侧下载）；PicUrl/ThumbMediaId 非 media_id 不混入
-        media_ids: list[str] = []
-        if msg.get("MediaId"):
-            media_ids.append(str(msg["MediaId"]).strip())
-        push = {
-            "msg_id": f"workwechat_{msg_id}",
-            "platform": "workwechat",
-            "corpid": msg.get("ToUserName", ""),
-            "agent_id": str(msg.get("AgentID", "") or ""),
-            "chat_id": chat_id,
-            "group_name": chat_id[-8:] or "企业微信群",
-            "sender": msg.get("FromUserName", ""),
-            "content": msg.get("Content") or "",
-            "msg_type": msg.get("MsgType", "text"),
-            "media_ids": media_ids,
-            "ts": int(msg.get("CreateTime", 0) or 0) * 1000,   # 秒 → 毫秒
-        }
-        # 文本以外的消息给个可读占位
-        if push["msg_type"] != "text" and not push["content"]:
-            push["content"] = f"[{push['msg_type']}]" if push["msg_type"] != "image" else "[图片]"
-        inbox.push_message("workwechat", push)
-        _fail_ts.clear()   # 消息接收成功 → 复位限流计数
+        authenticated.append(cfg)
+        message = msg
+    if message is None:
+        _reject()
+    msg = message
+    msg_id = str(msg.get("MsgId", "") or "").strip()
+    if not msg_id:
+        # 事件类推送（subscribe 等）无 MsgId，忽略
         return PlainTextResponse("success")
-    _reject()
+    chat_id = (msg.get("ChatId") or "").strip() or (msg.get("FromUserName") or "").strip()
+    # 媒体消息：只取 MediaId（worker 侧下载）；PicUrl/ThumbMediaId 非 media_id 不混入
+    media_ids: list[str] = []
+    if msg.get("MediaId"):
+        media_ids.append(str(msg["MediaId"]).strip())
+    push = {
+        "msg_id": f"workwechat_{msg_id}",
+        "platform": "workwechat",
+        "corpid": msg.get("ToUserName", ""),
+        "agent_id": str(msg.get("AgentID", "") or ""),
+        "chat_id": chat_id,
+        "group_name": chat_id[-8:] or "企业微信群",
+        "sender": msg.get("FromUserName", ""),
+        "content": msg.get("Content") or "",
+        "msg_type": msg.get("MsgType", "text"),
+        "media_ids": media_ids,
+        "ts": int(msg.get("CreateTime", 0) or 0) * 1000,   # 秒 → 毫秒
+    }
+    # 文本以外的消息给个可读占位
+    if push["msg_type"] != "text" and not push["content"]:
+        push["content"] = f"[{push['msg_type']}]" if push["msg_type"] != "image" else "[图片]"
+    targets = workwechat_routing.recipients(push, authenticated)
+    if not targets:
+        raise HTTPException(403, "没有匹配的启用应用绑定")
+    try:
+        saved = delivery.enqueue("workwechat", push, targets)
+    except Exception:
+        # Returning 503 lets the platform retry rather than acknowledging lost data.
+        raise HTTPException(503, "收件箱暂不可用，请重试") from None
+    if not saved:
+        raise HTTPException(503, "收件箱写入失败，请重试")
+    _fail_ts.clear()   # 消息接收成功 → 复位限流计数
+    return PlainTextResponse("success")
 
 
 __all__ = ["router"]

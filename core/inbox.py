@@ -12,13 +12,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from config import DATA_DIR
+import config
 
 
 def _dir(platform: str, scope: str = "") -> Path:
     if scope:
-        return DATA_DIR / "inbox" / platform / scope
-    return DATA_DIR / "inbox" / platform
+        return config.DATA_DIR / "inbox" / platform / scope
+    return config.DATA_DIR / "inbox" / platform
 
 
 def push_message(platform: str, msg: dict) -> bool:
