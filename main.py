@@ -141,12 +141,20 @@ def run_worker(platform: str) -> None:
         for uname, f in fresh_map.items():
             cur = cur_map.get(uname)
             if cur and cur["config"] != f["config"]:
+                # 顺序很关键：**先**把新实例建好，成功后才停旧、移除旧。
+                # 若先 stop+remove 再 _make_inst，一旦建实例抛异常（config 异常/
+                # 依赖缺失等），该实例就彻底丢失 → 心跳停止 → 界面「已停止」
+                # 且机器人静默失联，直到重启服务。
+                try:
+                    _make_inst(platform, f)
+                except Exception as e:  # noqa: BLE001
+                    print(f"[{platform}] 重建实例失败({uname or 'global'})，保留旧实例: {e}")
+                    continue
                 try:
                     cur["adapter"].stop()
                 except Exception:  # noqa: BLE001
                     pass
                 instances.remove(cur)
-                _make_inst(platform, f)
                 instances.append(f)
                 print(f"[{platform}] 绑定变更，重建实例: {uname}")
         # 新增用户实例
@@ -166,7 +174,14 @@ def run_worker(platform: str) -> None:
                     print(f"[{platform}] 实例启动失败({inst['username'] or 'global'}): {e}")
         _sync_daily_jobs(scheduler, platform, instances)
 
-    _sync_instances()   # 首轮同步（含启动 adapter）
+    def _sync_safe():
+        """同步入口：单轮异常不拖垮 worker 主循环（下一轮自动重试）"""
+        try:
+            _sync_instances()
+        except Exception as e:  # noqa: BLE001
+            print(f"[{platform}] 实例同步失败（下一轮重试）: {e}")
+
+    _sync_safe()   # 首轮同步（含启动 adapter）
 
     def _consume_cmds():
         # 全局命令文件 + 每个用户的命令文件
@@ -225,7 +240,7 @@ def run_worker(platform: str) -> None:
                       seconds=max(2, int(config.get("COMMAND_INTERVAL", 3))),
                       id=f"cmds_{platform}")
     # 定期重扫绑定（多租户动态实例：新绑定用户自动接入）
-    scheduler.add_job(_sync_instances, "interval", seconds=15, id=f"sync_{platform}")
+    scheduler.add_job(_sync_safe, "interval", seconds=15, id=f"sync_{platform}")
     def _retry_analysis():
         for inst in list(instances):
             inst['pipeline'].retry_analysis(limit=5)
