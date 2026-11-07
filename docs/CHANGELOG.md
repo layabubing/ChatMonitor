@@ -28,6 +28,17 @@
 
 ### Changed
 
+- **代码质量优化（全项目检查后落地 M1~M3）**
+  - **SSE 轮询开销**（`web/routers/stream.py` + `core/storage/base.py`）
+    - 无客户端时**零查询**：清空基线后以 10s 空转，不在无人查看时扫库
+    - 有客户端时改用新增的 `Storage.max_ids()` —— **一次连接取四类最大值**，替代原先 4 次独立查询（每次都要新开 SQLite 连接）
+    - 影响：20 用户场景从约 160 次查询/秒（含 4N 次连接创建）降为 **0（无人在线）/ 约 20 次（在线）**，约 4~8 倍
+  - **统一日志**（新增 `core/log.py`）：`logging` + `RotatingFileHandler`（10MB × 5 份）+ **tee 捕获 `print`**，按进程写入 `data/logs/{component}.log`；`main.py` / `launcher.py` 启动即初始化
+    - 影响：原先 111 处 `print` 只进 stdout，**进程崩溃即丢失**（排查线上崩溃时吃过亏）；现在自动落盘且保留终端输出，无需改动调用点
+  - **事件循环复用**（新增 `core/asyncutil.py`）：5 处 `asyncio.new_event_loop()` + `close()` 改为**线程本地复用**
+    - 位置：`core/pipeline.py`、`core/reporter.py`、`platforms/dingtalk.py`、`platforms/feishu.py`、`platforms/workwechat.py`
+    - 影响：每条媒体消息 / @ 消息不再创建销毁事件循环
+
 - **AI 调用统一迁移到千问 AI 平台 `deepseek-v4.1-flash-1017`**（文本 / 文件 / 图像三类识别统一同一模型）
   - `config.py` + `configs/app.env.example`：`AI_BASE_URL` → `https://maas.qianwenaiapi.com/compatible-mode/v1`；`AI_MODEL`、`AI_MODEL_VISION` → `deepseek-v4.1-flash-1017`；`AI_ENABLE_THINKING` 默认改为 `false`
   - `core/analyzer.py`：`chat_completion()` / `analyze_image()` 的默认模型名与 endpoint 同步；**新增 `enable_thinking` 兼容降级**（平台返回 400/422 时自动去掉该参数重试一次）；图像请求的 MIME 改为**按真实扩展名推断**（PNG/WEBP/GIF/BMP），修复原先一律标 `image/jpeg` 的问题

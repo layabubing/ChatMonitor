@@ -322,6 +322,9 @@ def run_web() -> None:
 
 def main() -> None:
     target = sys.argv[1] if len(sys.argv) > 1 else "all"
+    # 统一日志：每个进程写自己的 data/logs/<component>.log（幂等，print 也会落盘）
+    from core import log as _log
+    _log.setup("launcher" if target == "all" else target)
     if target == "all":
         import launcher
         launcher.launch_all()

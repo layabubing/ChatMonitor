@@ -30,6 +30,8 @@ def launch_all() -> None:
     QQ worker 崩溃后永久失联（Web 仍正常，界面只显示「已停止」），
     必须人工重启整个服务才能恢复。这里改为轮询 + 自动重启。
     """
+    from core import log as _log
+    _log.setup("launcher")
     targets = [*PLATFORMS, "web"]
     procs: dict[str, tuple[subprocess.Popen, float]] = {}
 

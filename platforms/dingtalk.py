@@ -64,15 +64,12 @@ class DingTalkAdapter(PlatformAdapter):
         import asyncio
 
         from core import analyzer
+        from core.asyncutil import run_async
         p = DATA_DIR / local_path
         if not p.exists():
             return ""
         try:
-            loop = asyncio.new_event_loop()
-            try:
-                return loop.run_until_complete(analyzer.transcribe_audio(self.config, str(p)))
-            finally:
-                loop.close()
+            return run_async(analyzer.transcribe_audio(self.config, str(p)))
         except Exception as e:  # noqa: BLE001
             print(f"[dingtalk] 语音转写失败: {e}")
             return ""

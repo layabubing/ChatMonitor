@@ -11,6 +11,7 @@ import httpx
 
 from config import DATA_DIR
 from core import accounts, analyzer, keywords, media
+from core.asyncutil import run_async
 
 # ── 向后兼容 re-export（既有调用方仍可 from core.pipeline import ...） ──
 from core.keywords import (  # noqa: F401
@@ -126,14 +127,9 @@ class Pipeline:
                 context = self.storage.recent_messages(self.platform, msg.group_id, rounds)
             except Exception:  # noqa: BLE001  上下文取不到就用单轮
                 context = []
-        # 生成回复（同步调用异步函数，与 _handle_saved_media 保持一致）
+        # 生成回复（同步调用异步函数，复用线程本地事件循环）
         try:
-            loop = asyncio.new_event_loop()
-            try:
-                answer = loop.run_until_complete(
-                    analyzer.answer_question(self.config, question, context))
-            finally:
-                loop.close()
+            answer = run_async(analyzer.answer_question(self.config, question, context))
         except Exception as e:  # noqa: BLE001
             print(f"[{self.platform}] @回复生成失败: {e}")
             return

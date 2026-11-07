@@ -9,6 +9,7 @@ from pathlib import Path
 
 from config import PLATFORM_META, platform_report_dir
 from core import analyzer
+from core.asyncutil import run_async
 from core.dates import day_bounds, today
 from core.models import ImportantItem, ReportData
 from core.storage import Storage
@@ -40,14 +41,9 @@ async def _build_summary(storage: Storage, config: dict, platform: str, date_str
 def generate_report(storage: Storage, config: dict, platform: str,
                     date_str: str | None = None, username: str = "") -> ReportData | None:
     """同步入口：生成某日报告（docx + html）；username 指定时输出到用户目录"""
-    import asyncio
     date_str = date_str or today(config.get('REPORT_TIMEZONE', ''))
-    loop = asyncio.new_event_loop()
-    try:
-        summary, msg_count, imp_count, msgs_raw, alerts = loop.run_until_complete(
-            _build_summary(storage, config, platform, date_str))
-    finally:
-        loop.close()
+    summary, msg_count, imp_count, msgs_raw, alerts = run_async(
+        _build_summary(storage, config, platform, date_str))
 
     if username:
         from config import user_report_dir

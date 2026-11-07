@@ -117,6 +117,24 @@ class StorageBase:
         conn.row_factory = sqlite3.Row
         return conn
 
+    # ── 跨表最大值（SSE 轮询专用，一次连接替代 4 次查询）──
+    def max_ids(self, platform: str) -> dict:
+        """一次连接取四类最大值：消息 ts / 提醒 id / 报告 id / 文件 id。"""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT (SELECT MAX(ts) FROM messages WHERE platform=?),"
+                " (SELECT MAX(id) FROM alerts WHERE platform=?),"
+                " (SELECT MAX(id) FROM reports WHERE platform=?),"
+                " (SELECT MAX(id) FROM files WHERE platform=?)",
+                (platform, platform, platform, platform),
+            ).fetchone()
+        return {
+            "msg": int(row[0] or 0),
+            "alert": int(row[1] or 0),
+            "report": int(row[2] or 0),
+            "file": int(row[3] or 0),
+        }
+
     # ── 跨表概览 ──
     def overview(self) -> dict:
         today = datetime.date.today().isoformat()

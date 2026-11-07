@@ -11,14 +11,24 @@ from web import auth, deps, security, sse
 
 router = APIRouter()
 
-POLL_INTERVAL = 2.0
+POLL_INTERVAL = 2.0          # 有客户端在线时的增量扫描间隔
+IDLE_POLL_INTERVAL = 10.0    # 无客户端时的空转间隔（不扫库）
 
 
 async def sse_poller() -> None:
     """后台增量扫描：所有用户各平台的新消息/提醒/报告/文件 → 按用户广播。
-    （每用户每平台独立 try，单库异常不影响其余；杜绝阻塞主循环）"""
+
+    性能要点（原实现每 2s 无条件扫「用户×平台×4 类」，约 16N 次查询）：
+    - **无客户端时零查询**：清空基线后长休眠；重连后从当前最大值重建基线（不会补发历史）；
+    - 有客户端时用 `Storage.max_ids()` **一次连接取四类最大值**（原为 4 次连接）；
+    - 每用户每平台独立 try，单库异常不影响其余。
+    """
     cursor: dict[str, dict] = {}
     while True:
+        if sse.client_count() == 0:
+            cursor.clear()
+            await asyncio.sleep(IDLE_POLL_INTERVAL)
+            continue
         try:
             for u in auth.list_users():
                 uname = u["username"]
@@ -26,7 +36,8 @@ async def sse_poller() -> None:
                 for p in PLATFORMS:
                     try:
                         st = deps.storage(p, uname)
-                        t = st.max_msg_ts(p)
+                        latest_ids = st.max_ids(p)
+                        t = latest_ids["msg"]
                         if t > cur["msg"].get(p, 0):
                             cur["msg"][p] = t
                             payload: dict = {"platform": p}
@@ -38,7 +49,7 @@ async def sse_poller() -> None:
                                     "preview": (latest.get("content") or "")[:50],
                                 })
                             await sse.broadcast("message", payload, username=uname)
-                        a = st.max_alert_id(p)
+                        a = latest_ids["alert"]
                         if a > cur["alert"].get(p, 0):
                             cur["alert"][p] = a
                             payload = {"platform": p, "id": a}
@@ -50,11 +61,11 @@ async def sse_poller() -> None:
                                     "preview": (alert.get("content") or "")[:50],
                                 })
                             await sse.broadcast("alert", payload, username=uname)
-                        r = st.max_report_id(p)
+                        r = latest_ids["report"]
                         if r > cur["report"].get(p, 0):
                             cur["report"][p] = r
                             await sse.broadcast("report", {"platform": p}, username=uname)
-                        f = st.max_file_id(p)
+                        f = latest_ids["file"]
                         if f > cur["file"].get(p, 0):
                             cur["file"][p] = f
                             await sse.broadcast("file", {"platform": p}, username=uname)
