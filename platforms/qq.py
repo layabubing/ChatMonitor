@@ -45,6 +45,7 @@ class QQAdapter(PlatformAdapter):
         self._group_filter: set[str] = {
             g for g in (config.get("QQ_GROUP_OPENIDS") or "").split(",") if g.strip()}
         self._seen_events: set[str] = set()   # 已记录的未处理事件类型（诊断用，避免刷屏）
+        self._msg_seq: dict[str, tuple[int, float]] = {}   # msg_id → (已用 seq, 首次时间)，被动回复需递增
 
     # ── 鉴权 ──
     def _get_token(self) -> str:
@@ -125,7 +126,9 @@ class QQAdapter(PlatformAdapter):
                     s = data.get("s")
                     t = data.get("t")
                     if t in _GROUP_MSG_EVENTS:
-                        await self._handle_group_msg(data.get("d", {}))
+                        # 两个事件体一致，唯一语义差别：@ 事件必然是「@ 了机器人」
+                        await self._handle_group_msg(
+                            data.get("d", {}), is_at=(t == "GROUP_AT_MESSAGE_CREATE"))
                     elif t == "READY":
                         self.set_connected(True)   # 认证成功，真正可收消息
                         print("[qq] 已连接，开始接收群消息")
@@ -146,7 +149,7 @@ class QQAdapter(PlatformAdapter):
         self.set_connected(False)
 
     # ── 消息解析 ──
-    async def _handle_group_msg(self, d: dict) -> None:
+    async def _handle_group_msg(self, d: dict, is_at: bool = False) -> None:
         group_openid = d.get("group_openid", "")
         if self._group_filter and group_openid not in self._group_filter:
             return
@@ -175,7 +178,51 @@ class QQAdapter(PlatformAdapter):
             sender=(d.get("author") or {}).get("username", ""),
             content=content, msg_type=msg_type, media_urls=local_media,
             ts=_rfc3339_to_ms(d.get("timestamp", "")),
+            is_at_me=is_at,
         ))
+
+    # ── 发消息 ──
+    def send_text(self, group_id: str, text: str, reply_to: str = "") -> bool:
+        """向群发送文本。
+
+        - `reply_to` 非空 = **被动回复**（QQ 要求 5 分钟内，且同一 msg_id 的 msg_seq 必须递增）；
+        - `reply_to` 为空 = **主动推送**（需在开放平台开通「主动消息」权限，且有配额限制）。
+        """
+        text = (text or "").strip()
+        if not text or not group_id:
+            return False
+        if len(text) > 1800:      # QQ 单条上限约 2000 字，留余量
+            text = text[:1800] + "…"
+        try:
+            token = self._get_token()
+            base = ("https://sandbox.api.sgroup.qq.com"
+                    if self.config.get("QQ_ENV") == "sandbox" else "https://api.sgroup.qq.com")
+            body: dict = {"content": text, "msg_type": 0}
+            if reply_to:
+                body["msg_id"] = reply_to
+                body["msg_seq"] = self._next_msg_seq(reply_to)
+            r = httpx.post(
+                f"{base}/v2/groups/{group_id}/messages",
+                headers={"Authorization": f"QQBot {token}", "Content-Type": "application/json"},
+                json=body, timeout=15,
+            )
+            if r.status_code not in (200, 201, 204):
+                print(f"[qq] 发送失败 {r.status_code}: {r.text[:150]}")
+                return False
+            return True
+        except Exception as e:  # noqa: BLE001
+            print(f"[qq] 发送异常: {e}")
+            return False
+
+    def _next_msg_seq(self, msg_id: str) -> int:
+        """同一条 msg_id 多次回复必须递增 msg_seq（QQ 官方去重规则，否则报 msgseq 错误）。"""
+        now = time.time()
+        # 清掉超过 5 分钟的记录（被动回复窗口已过）
+        for k in [k for k, (_, t) in self._msg_seq.items() if now - t > 300]:
+            self._msg_seq.pop(k, None)
+        seq = self._msg_seq.get(msg_id, (0, now))[0] + 1
+        self._msg_seq[msg_id] = (seq, now)
+        return seq
 
     @staticmethod
     def _find_asr(d: dict) -> str:

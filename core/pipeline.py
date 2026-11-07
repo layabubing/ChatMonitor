@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+import time
 
 import httpx
 
@@ -33,6 +34,9 @@ class Pipeline:
         self._lock = threading.Lock()
         self._analysis_lock = threading.Lock()
         self._report_lock = threading.Lock()
+        # @ 自动回复：由 main._make_inst 注入真实发送回调（平台不支持发送时为 None）
+        self.sender = None
+        self._at_sent: dict[str, list[float]] = {}   # 群 → 最近发送时间戳（限流用）
         # 用户级实例使用用户自己的关键词库（多租户）
         self._user_words: list[str] = []
         if username:
@@ -69,9 +73,74 @@ class Pipeline:
         if not msgs:
             return 0
         added_ids = self.storage.insert_messages(msgs, enqueue_analysis=True)
+        # @ 自动回复：只处理「本次真正新增」的消息（被动回复有 5 分钟窗口，不进任务队列）
+        if self.sender:
+            added = set(added_ids)
+            for m in msgs:
+                if m.msg_id in added and getattr(m, "is_at_me", False):
+                    try:
+                        self._reply_to_at(m)
+                    except Exception as e:  # noqa: BLE001  单条失败不影响入库与后续分析
+                        print(f"[{self.platform}] @回复异常: {e}")
         if analyze:
             self.retry_analysis(limit=max(20, len(msgs) * 2))
         return len(added_ids)
+
+    def _reply_to_at(self, msg: ChatMessage) -> None:
+        """对 @ 机器人的消息生成并发送回复。
+
+        受账号配置约束：
+        - `AI_AT_REPLY` 关闭 / `AI_AT_RATE` <= 0 → 不回复；
+        - 账号未配置 AI_API_KEY → 不回复（按需求不回退全局凭据）；
+        - 限流：同群每分钟最多 `AI_AT_RATE` 条。
+        """
+        if not self.sender or not self.config.get("AI_API_KEY"):
+            return
+        try:
+            rate = int(self.config.get("AI_AT_RATE", "0") or 0)
+        except (TypeError, ValueError):
+            rate = 0
+        if self.config.get("AI_AT_REPLY", "false") != "true" or rate <= 0:
+            return
+        question = (msg.content or "").strip()
+        if not question:
+            return
+        # 限流（同群 60 秒窗口）
+        key = msg.group_id or "global"
+        now = time.time()
+        bucket = [t for t in self._at_sent.get(key, []) if now - t < 60]
+        if len(bucket) >= rate:
+            self._at_sent[key] = bucket
+            print(f"[{self.platform}] @回复已达限流（{rate} 条/分钟），跳过")
+            return
+        bucket.append(now)
+        self._at_sent[key] = bucket
+        # 多轮上下文
+        context: list[dict] = []
+        try:
+            rounds = int(self.config.get("AI_CTX_ROUNDS", "0") or 0)
+        except (TypeError, ValueError):
+            rounds = 0
+        if rounds > 0:
+            try:
+                context = self.storage.recent_messages(self.platform, msg.group_id, rounds)
+            except Exception:  # noqa: BLE001  上下文取不到就用单轮
+                context = []
+        # 生成回复（同步调用异步函数，与 _handle_saved_media 保持一致）
+        try:
+            loop = asyncio.new_event_loop()
+            try:
+                answer = loop.run_until_complete(
+                    analyzer.answer_question(self.config, question, context))
+            finally:
+                loop.close()
+        except Exception as e:  # noqa: BLE001
+            print(f"[{self.platform}] @回复生成失败: {e}")
+            return
+        if not answer:
+            return
+        ok = self.sender(msg.group_id, answer, msg.msg_id)
+        print(f"[{self.platform}] @回复{'成功' if ok else '失败'}: {answer[:40]}")
 
     def retry_analysis(self, limit: int = 20) -> int:
         """Run due/expired jobs, retaining failures with bounded exponential backoff."""
@@ -178,9 +247,30 @@ class Pipeline:
                 print(f"[{self.platform}] 日报待补跑 ({task['date']}): {error}")
                 return None
             self.storage.finish_report(task['receipt'])
+            self._push_report(report)
             return report
         finally:
             self._report_lock.release()
+
+    def _push_report(self, report) -> None:
+        """按账号配置把日报摘要推送到群。
+
+        前提：①平台实现了 `send_text`；②账号开启推送并填了群 openid；
+        ③该机器人已开通「主动消息」权限（未开通时接口会失败，只记录日志、不重试）。
+        """
+        if not self.sender or self.config.get("AI_REPORT_PUSH", "false") != "true":
+            return
+        group = (self.config.get("AI_REPORT_GROUP") or "").strip()
+        if not group:
+            return
+        try:
+            text = (f"📊 {getattr(report, 'date', '')} 群聊日报\n"
+                    f"消息 {getattr(report, 'msg_count', 0)} 条 · 重要 {getattr(report, 'important_count', 0)} 条\n"
+                    f"完整报告请登录网页查看")
+            ok = self.sender(group, text, "")
+            print(f"[{self.platform}] 日报推送{'成功' if ok else '失败'}: {group}")
+        except Exception as e:  # noqa: BLE001  推送失败不影响报告本身
+            print(f"[{self.platform}] 日报推送异常: {e}")
 
     # ── 补判定：重载关键词后对今日未提醒消息重新扫描 ──
     def rescan_today(self) -> int:

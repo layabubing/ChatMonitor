@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from web.routers import (
     account,
+    ai_settings,
     alerts,
     auth_routes,
     files,
@@ -25,6 +26,7 @@ all_routers = [
     pages.router,
     auth_routes.router,
     account.router,
+    ai_settings.router,
     overview.router,
     messages.router,
     alerts.router,

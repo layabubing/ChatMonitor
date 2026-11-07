@@ -217,6 +217,40 @@ def _file_result(text: str) -> dict:
 
 
 
+async def answer_question(config: dict, question: str, context: list[dict] | None = None) -> str:
+    """回答群里 @ 机器人的提问；`context` 为时间正序的最近群聊记录（多轮上下文）。
+
+    - 单轮：context 为空或轮数为 0；
+    - 多轮：把最近 N 条消息作为参考材料塞进 system 消息，而不是伪装成对话历史，
+      避免模型把群友的话当成自己在说。
+    失败会抛 AnalysisError（由调用方决定是否静默）。
+    """
+    question = (question or "").strip()
+    if not question:
+        return ""
+    messages: list[dict] = [{
+        "role": "system",
+        "content": ("你是校园群聊里的智能助手。回答要简洁（尽量 200 字以内）、准确、口语化；"
+                    "信息不足时直接说明不知道，不要编造。"
+                    "涉及医疗、人身安全等紧急情况，优先提示联系老师或拨打 110/120。"),
+    }]
+    if context:
+        lines = []
+        for c in context[-20:]:
+            who = c.get("sender") or "群友"
+            text = (c.get("content") or "").strip()
+            if text:
+                lines.append(f"{who}: {text[:200]}")
+        if lines:
+            messages.append({
+                "role": "system",
+                "content": "以下是该群最近的聊天记录（仅作参考，不要逐条复述）:\n" + "\n".join(lines),
+            })
+    messages.append({"role": "user", "content": question})
+    text = await chat_completion(config, messages, temperature=0.5, max_tokens=600)
+    return (text or "").strip()[:1000]
+
+
 async def analyze_file(config: dict, orig_name: str, msg_text: str = "") -> dict | None:
     """文本模型识别文件（非图片）：基于文件名与消息上下文判断重要性"""
     prompt = (

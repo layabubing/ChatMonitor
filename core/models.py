@@ -32,6 +32,7 @@ class ChatMessage:
     msg_type: str = "text"         # text / image / video / file / other
     media_urls: list = field(default_factory=list)   # 图片/文件 URL（多模态分析用）
     ts: float = field(default_factory=_now_ts)       # 毫秒时间戳
+    is_at_me: bool = False         # 是否 @ 了机器人（决定要不要自动回复）
 
     def to_dict(self) -> dict:
         d = asdict(self)

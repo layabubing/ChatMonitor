@@ -29,6 +29,10 @@ export function init() {
   $('saveNick').addEventListener('click', saveNickname);
   $('savePwd').addEventListener('click', savePassword);
 
+  // 我的 AI 配置（账号自备）
+  $('aiTest').addEventListener('click', testAccountAi);
+  $('aiSave').addEventListener('click', saveAccountAi);
+
   // 系统更新（仅 admin 可见可用，按钮本身始终存在）
   $('updCheck').addEventListener('click', checkUpdate);
   $('updApply').addEventListener('click', applyUpdate);
@@ -69,6 +73,7 @@ export async function load() {
     if (s.role === 'admin') $('settingsNavUpdate').hidden = false;   // 系统更新仅 admin 可见
     $('meNick').placeholder = s.nickname || '给自己起个昵称';
     renderAiInfo(s);
+    await loadAccountAi();
     kwData = s.keywords || {};
     renderKeywords();
     await Promise.all(Object.keys(FIELD_MAP).map(loadBinding));
@@ -362,6 +367,82 @@ function renderAiInfo(s) {
     <div class="settings-row"><span class="label">API Key</span><span>${s.ai.key_set ? '已配置 ' + esc(s.ai.key_masked) : '<b style="color:var(--danger)">未配置</b>'}</span></div>
     <div class="settings-row"><span class="label">Server酱推送</span><span>${s.serverchan_set ? '已开启' : '未开启'}</span></div>
     <div class="settings-row"><span class="label">平台</span><span>${s.platforms.map((p) => `${PLATFORM_NAMES[p.name]} ${p.enabled ? '启用' : '停用'} · ${p.running ? '运行中' : (p.alive ? '连接异常' : '已停止')}`).join('　')}</span></div>`;
+}
+
+// ── 我的 AI 配置（账号自备 API / 模型）──
+async function loadAccountAi() {
+  try {
+    const d = await api('/api/settings/ai');
+    const gd = d.global_defaults || {};
+    $('aiBase').value = d.base_url || '';
+    $('aiModel').value = d.model || '';
+    $('aiVision').value = d.model_vision || '';
+    $('aiKey').value = '';
+    $('aiKey').placeholder = d.key_set
+      ? `已配置（${d.key_masked}），留空则不修改`
+      : '未配置 —— 本账号 AI 功能不可用';
+    if (gd.base_url) $('aiBase').placeholder = `留空沿用默认：${gd.base_url}`;
+    if (gd.model) $('aiModel').placeholder = `留空沿用默认：${gd.model}`;
+    $('aiAtEnabled').value = d.at_reply_enabled ? 'true' : 'false';
+    $('aiAtRate').value = d.at_rate_limit ?? 5;
+    $('aiCtx').value = d.context_rounds ?? 0;
+    $('aiReportPush').value = d.report_push_enabled ? 'true' : 'false';
+    $('aiReportGroup').value = d.report_push_group || '';
+    const st = $('aiStatus');
+    st.className = d.key_set ? 'bind-status ok' : 'bind-status err';
+    st.textContent = d.key_set
+      ? '✅ 已配置（仅本账号生效）'
+      : '⚠ 未配置 API Key：AI 分析与 @ 回复不可用（不会使用全局凭据）';
+  } catch (e) { /* 静默：不影响设置页其它内容 */ }
+}
+
+function collectAccountAi() {
+  const payload = {
+    base_url: $('aiBase').value.trim(),
+    model: $('aiModel').value.trim(),
+    model_vision: $('aiVision').value.trim(),
+    at_reply_enabled: $('aiAtEnabled').value === 'true',
+    at_rate_limit: Number($('aiAtRate').value || 0),
+    context_rounds: Number($('aiCtx').value || 0),
+    report_push_enabled: $('aiReportPush').value === 'true',
+    report_push_group: $('aiReportGroup').value.trim(),
+  };
+  const key = $('aiKey').value.trim();
+  if (key) payload.api_key = key;   // 留空 = 不修改已保存的 Key
+  return payload;
+}
+
+async function saveAccountAi() {
+  const st = $('aiStatus');
+  if ($('aiReportPush').value === 'true' && !$('aiReportGroup').value.trim()) {
+    st.className = 'bind-status err';
+    st.textContent = '开启日报推送需要填写目标群 openid';
+    return;
+  }
+  try {
+    const d = await api('/api/settings/ai', { method: 'POST', body: JSON.stringify(collectAccountAi()) });
+    st.className = 'bind-status ok';
+    st.textContent = `✅ 已保存（${d.note || '约 15 秒内生效'}）`;
+    $('aiKey').value = '';
+    await loadAccountAi();
+  } catch (e) {
+    st.className = 'bind-status err';
+    st.textContent = e.message;
+  }
+}
+
+async function testAccountAi() {
+  const st = $('aiStatus');
+  st.className = 'bind-status info';
+  st.textContent = '正在调用模型测试…';
+  try {
+    const d = await api('/api/settings/ai/test', { method: 'POST', body: JSON.stringify(collectAccountAi()) });
+    st.className = d.ok ? 'bind-status ok' : 'bind-status err';
+    st.textContent = (d.ok ? '✅ ' : '❌ ') + (d.detail || '');
+  } catch (e) {
+    st.className = 'bind-status err';
+    st.textContent = e.message;
+  }
 }
 
 // ── 系统更新（仅 admin；每一次 commit 即一个版本） ──

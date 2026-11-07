@@ -49,6 +49,19 @@ CREATE TABLE IF NOT EXISTS binding_profiles (
 );
 CREATE INDEX IF NOT EXISTS idx_binding_profiles
     ON binding_profiles(username, platform);
+CREATE TABLE IF NOT EXISTS user_ai (
+    username TEXT PRIMARY KEY,
+    base_url TEXT NOT NULL DEFAULT '',
+    api_key TEXT NOT NULL DEFAULT '',
+    model TEXT NOT NULL DEFAULT '',
+    model_vision TEXT NOT NULL DEFAULT '',
+    at_reply_enabled INTEGER NOT NULL DEFAULT 0,
+    at_rate_limit INTEGER NOT NULL DEFAULT 5,
+    context_rounds INTEGER NOT NULL DEFAULT 0,
+    report_push_enabled INTEGER NOT NULL DEFAULT 0,
+    report_push_group TEXT NOT NULL DEFAULT '',
+    updated_at INTEGER
+);
 CREATE TABLE IF NOT EXISTS user_keywords (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,

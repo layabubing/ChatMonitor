@@ -36,6 +36,21 @@ class MessageRepo:
             conn.commit()
         return added_ids
 
+    def recent_messages(self, platform: str, group_id: str = "", limit: int = 10) -> list[dict]:
+        """取最近 N 条消息（按群过滤、时间正序），用于 @ 回复的多轮上下文。"""
+        if limit <= 0:
+            return []
+        where = ["platform = ?"]
+        params: list = [platform]
+        if group_id:
+            where.append("group_id = ?")
+            params.append(group_id)
+        sql = ("SELECT msg_id, sender, content, ts FROM messages "
+               f"WHERE {' AND '.join(where)} ORDER BY ts DESC LIMIT ?")
+        with self._connect() as conn:
+            rows = conn.execute(sql, [*params, limit]).fetchall()
+        return [dict(r) for r in reversed(rows)]
+
     def query_messages(self, platform: str, group: str = "", q: str = "",
                        page: int = 1, page_size: int = 50, since_ts: int = 0) -> dict:
         """分页查询消息（media_urls 自动解析为列表）；since_ts>0 时只返回该时间戳之后的消息。"""

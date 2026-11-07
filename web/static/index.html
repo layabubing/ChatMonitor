@@ -258,6 +258,33 @@
               <h3>🤖 AI 模型（<span id="aiModelName">…</span>）</h3>
               <div id="aiInfo"></div>
             </div>
+
+            <div class="card" style="margin-top:12px">
+              <h3>🔑 我的 AI 配置 <span class="hint-inline">本账号自行提供 API 与模型；未配置时本账号的 AI 分析 / @ 回复不可用（不会使用全局凭据）</span></h3>
+              <div class="bind-row"><label>API Key</label>
+                <input type="password" id="aiKey" placeholder="留空表示不修改；已配置时显示脱敏值" autocomplete="new-password"></div>
+              <div class="bind-row"><label>Base URL</label>
+                <input type="text" id="aiBase" placeholder="留空沿用默认（如 https://maas.qianwenaiapi.com/compatible-mode/v1）"></div>
+              <div class="bind-row"><label>文本模型</label>
+                <input type="text" id="aiModel" placeholder="如 deepseek-v4.1-flash-1017"></div>
+              <div class="bind-row"><label>视觉模型</label>
+                <input type="text" id="aiVision" placeholder="留空 = 与文本模型相同"></div>
+              <div class="bind-row"><label>@ 自动回复</label>
+                <select id="aiAtEnabled"><option value="false">关闭</option><option value="true">开启</option></select></div>
+              <div class="bind-row"><label>限流（条/分钟/群）</label>
+                <input type="number" id="aiAtRate" min="0" max="60" step="1" value="5"></div>
+              <div class="bind-row"><label>多轮上下文（条）</label>
+                <input type="number" id="aiCtx" min="0" max="20" step="1" value="0"></div>
+              <div class="bind-row"><label>日报推送到群</label>
+                <select id="aiReportPush"><option value="false">关闭</option><option value="true">开启</option></select></div>
+              <div class="bind-row"><label>推送目标群 openid</label>
+                <input type="text" id="aiReportGroup" placeholder="开启推送时必填（群 openid，不是群号）"></div>
+              <div class="actions row-flex" style="margin-top:12px">
+                <button class="btn" id="aiTest">测试连接</button>
+                <button class="btn primary" id="aiSave">保存</button>
+              </div>
+              <div class="bind-status" id="aiStatus"></div>
+            </div>
           </div>
 
           <div class="subpage" id="sub-update">

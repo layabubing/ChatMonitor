@@ -47,6 +47,9 @@ def _collect_instances(platform: str, config: dict) -> list[dict]:
         cfg = dict(config)
         cfg.update(u["config"])
         cfg[f"{platform.upper()}_ENABLED"] = "true"
+        # 账号级 AI 配置：API Key 一律以账号为准；
+        # 账号未配置则显式清空 → AI 功能停用（不回退全局凭据）
+        cfg.update(accounts.ai_overrides(u["username"]))
         u_appid = cfg.get(app_id_key, "")
         if platform != "workwechat" and global_enabled and u_appid and u_appid == global_appid:
             print(f"[{platform}] 用户 {u['username']} 的凭证与全局相同，复用全局实例")
@@ -68,6 +71,9 @@ def _make_inst(platform: str, inst: dict) -> None:
     pipeline = Pipeline(storage, inst["config"], platform, username)
     adapter = PlatformAdapter.create(platform, inst["config"], username)
     inst.update(storage=storage, pipeline=pipeline, adapter=adapter, started=False)
+    # 注入发送回调：@ 自动回复与日报推群都走适配器；
+    # 平台未实现 send_text 时返回 False（不抛错，也不影响收消息）
+    pipeline.sender = adapter.send_text
 
 
 def _sync_daily_jobs(scheduler, platform: str, instances: list[dict]) -> None:

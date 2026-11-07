@@ -98,6 +98,16 @@ class PlatformAdapter(abc.ABC):
         """子线程调用：投递一条消息"""
         self._queue.put(msg)
 
+    # ── 发送（主动推送 / 被动回复）──
+    def send_text(self, group_id: str, text: str, reply_to: str = "") -> bool:
+        """向群/会话发送文本消息。
+
+        - `reply_to` 非空 = 被动回复：多数平台要求在收到消息后一定时间内回复（QQ 为 5 分钟）；
+        - `reply_to` 为空 = 主动推送：部分平台需要单独申请权限与配额。
+        默认实现返回 False，表示该平台尚未实现发送能力（不影响收消息）。
+        """
+        return False
+
     def acknowledge(self, msg: ChatMessage) -> None:
         """Called after the worker durably stores the message and analysis jobs."""
         return None

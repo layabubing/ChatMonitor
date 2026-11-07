@@ -7,6 +7,7 @@ web/auth.py 在此之上实现 JWT/Cookie 认证；worker（core.pipeline / main
 """
 from __future__ import annotations
 
+from core.accounts.ai import ai_overrides, get_user_ai, save_user_ai
 from core.accounts.bindings import (
     activate_profile,
     archive_current,
@@ -42,5 +43,6 @@ __all__ = [
     "get_user_binding", "save_user_binding", "list_bound_users",
     "list_profiles", "get_profile", "save_profile", "delete_profile",
     "activate_profile", "archive_current",
+    "get_user_ai", "save_user_ai", "ai_overrides",
     "get_user_keywords", "save_user_keywords", "flatten",
 ]
