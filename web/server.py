@@ -34,6 +34,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="聊天智能分析助手", docs_url=None, redoc_url=None, lifespan=lifespan)
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
     app.middleware("http")(security.csrf_guard)
+    app.middleware("http")(security.security_headers)
     for router in all_routers:
         app.include_router(router)
     return app

@@ -63,6 +63,10 @@ def ensure_admin() -> None:
     """确保 admin 账号存在：用 app.env 的凭证作为种子（不存在则创建）。"""
     cfg = get_app_config()
     admin_name = cfg.get("ADMIN_USERNAME", "admin")
+    pwd = cfg.get("ADMIN_PASSWORD", "change-me-please")
+    # 弱/默认密码告警：不阻断启动（避免把管理员锁在门外），但每次启动都提醒
+    if pwd in {"change-me-please", "change-me", "admin", "123456", "password"}:
+        print("[security] ⚠ 管理员仍在使用默认/弱密码，公网部署请立即修改 configs/app.env 的 ADMIN_PASSWORD")
     existing = find_user(admin_name)
     if existing:
         if existing["role"] != ROLE_ADMIN:
@@ -70,7 +74,6 @@ def ensure_admin() -> None:
                 conn.execute("UPDATE users SET role=? WHERE username=?", (ROLE_ADMIN, admin_name))
                 conn.commit()
         return
-    pwd = cfg.get("ADMIN_PASSWORD", "change-me-please")
     salt = cfg.get("ADMIN_PASSWORD_SALT") or SALT_DEFAULT
     stored_hash = cfg.get("ADMIN_PASSWORD_HASH") or db.hash_password(pwd, salt)
     with db.lock, db.connect() as conn:

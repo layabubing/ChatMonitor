@@ -16,6 +16,16 @@
 
 ## [Unreleased]
 
+### Security
+
+- **全项目安全加固（审计后落地）**
+  - **新增安全响应头中间件**（`web/security.py` + `web/server.py`）：`X-Content-Type-Options: nosniff`、`X-Frame-Options: SAMEORIGIN`、`Referrer-Policy: strict-origin-when-cross-origin`、`Permissions-Policy`；`Strict-Transport-Security` **仅在 HTTPS 下发送**（避免 HTTP 环境误锁）
+    - 影响：防 MIME 嗅探型 XSS、点击劫持、Referer 泄露完整路径；同源 iframe 仍可用（日报预览不受影响）
+  - **CSRF 校验补强**：无 `Origin` 的写请求改用 `Referer` 同源校验（此前完全依赖 Cookie `SameSite=lax` 兜底）
+  - **管理员弱密码告警**（`core/accounts/users.py`）：启动时若 `ADMIN_PASSWORD` 仍为默认值（`change-me-please` 等）则打印安全警告，但**不阻断启动**（避免把管理员锁在门外）
+- **依赖版本锁定**：`requirements.txt` 由全部 `>=` 改为**精确版本**（10 个直接依赖），保证构建可复现、避免上游自动升级引入不兼容或带漏洞的版本
+  - 影响：新部署/CI 安装结果确定；升级需显式改版本号并跑回归
+
 ### Changed
 
 - **AI 调用统一迁移到千问 AI 平台 `deepseek-v4.1-flash-1017`**（文本 / 文件 / 图像三类识别统一同一模型）

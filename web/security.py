@@ -106,4 +106,30 @@ async def csrf_guard(request: Request, call_next):
             host = request.headers.get("host", "")
             if origin not in (f"http://{host}", f"https://{host}"):
                 return JSONResponse({"error": "跨站请求被拒绝"}, status_code=403)
+        else:
+            # 无 Origin 的写请求（部分客户端/旧浏览器）：改用 Referer 兜底校验。
+            # 两者都缺失时放行（Cookie 已设 SameSite=lax，跨站 POST 不会携带凭据）。
+            referer = request.headers.get("referer")
+            if referer:
+                host = request.headers.get("host", "")
+                if not (referer.startswith(f"http://{host}/") or referer.startswith(f"https://{host}/")):
+                    return JSONResponse({"error": "跨站请求被拒绝"}, status_code=403)
     return await call_next(request)
+
+
+# ── 安全响应头：防 MIME 嗅探 / 点击劫持 / 降低信息泄露 ──
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    # 禁止浏览器猜测 Content-Type（避免上传内容被当脚本执行）
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    # 禁止被第三方站点嵌入（同源 iframe 仍可用，日报预览依赖它）
+    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    # 跨域跳转时隐藏完整路径
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    # 关闭不需要的浏览器能力
+    response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+    # 仅 HTTPS 下发 HSTS（HTTP 环境下发会让浏览器强制升级，可能导致本地调试失败）
+    proto = (request.headers.get("x-forwarded-proto") or request.url.scheme or "").lower()
+    if proto == "https":
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    return response
